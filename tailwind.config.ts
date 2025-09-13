@@ -22,7 +22,7 @@ const config: Config = {
         satoshi: ["var(--font-satoshi)"],
       },
       colors: {
-        background: "#240c33",
+        background: "#210831",
         foreground: "#F5F5F7",
         card: "#1A1A22",
         "card-foreground": "#F5F5F7",

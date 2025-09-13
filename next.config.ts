@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // This is the definitive, final configuration for your images.
   images: {
     remotePatterns: [
       {
@@ -14,11 +15,17 @@ const nextConfig = {
         port: "",
         pathname: "/**",
       },
-      // --- THIS IS THE NEW, FINAL ADDITION ---
-      // We are now officially allowing images from Pexels.
       {
         protocol: "https",
         hostname: "images.pexels.com",
+        port: "",
+        pathname: "/**",
+      },
+      // --- THIS IS THE FINAL, CRITICAL ADDITION ---
+      // We are now officially allowing images from your live Cloudinary account.
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
         port: "",
         pathname: "/**",
       },
