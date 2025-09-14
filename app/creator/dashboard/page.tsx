@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import {
   ArrowLeft,
   BarChart2,
+  CheckCircle2,
   Clock,
   FileAudio,
   Film,
@@ -13,6 +14,7 @@ import {
   TrendingUp,
   UploadCloud,
   Users,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
@@ -26,11 +28,10 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Textarea } from "@/components/ui/Textarea";
 import { StatCard } from "@/components/creator/StatCard";
-import { ProjectCard } from "@/components/investor/ProjectCard";
-import { ProjectInfo } from "@/components/creator/ProjectInfo";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-// --- THE CRITICAL FIX: We now import from the definitive types file ---
-import { LiveProject, Score } from "@/types";
+import { ProjectInfo } from "@/components/creator/ProjectInfo";
+import { ProjectCard } from "@/components/investor/ProjectCard";
+import { LiveProject, Score } from "@/types"; // Assuming types are in @/types
 
 // The AnalysisResult is now defined locally as it's only used here
 interface AnalysisResult {
@@ -66,18 +67,20 @@ export default function CreatorDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
 
+  // --- ENGINE TO MAKE THE DASHBOARD LIVE ---
   useEffect(() => {
     if (view === "dashboard") {
       try {
         const storedProjects = JSON.parse(
           localStorage.getItem("pulsevest_projects") || "[]"
         );
-        setLiveProjects(storedProjects.reverse());
+        setLiveProjects(storedProjects.reverse()); // .reverse() shows the newest projects first
       } catch (error) {
         console.error("Failed to load projects from localStorage", error);
+        setLiveProjects([]);
       }
     }
-  }, [view]);
+  }, [view]); // The dependency array ensures this runs every time `view` changes.
 
   const handleMediaFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setMediaFile(e.target.files[0]);
@@ -86,6 +89,7 @@ export default function CreatorDashboard() {
     if (e.target.files && e.target.files[0]) setCoverImage(e.target.files[0]);
   };
 
+  // --- STEP 1: ANALYSIS ---
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mediaFile || !title || !stageName) {
@@ -94,13 +98,16 @@ export default function CreatorDashboard() {
       );
       return;
     }
+
     setIsLoading(true);
     setLoadingMessage("Contacting analysis engine...");
     setApiError(null);
     setAnalysisResult(null);
+
     try {
       const formData = new FormData();
-      formData.append("audioFile", mediaFile);
+      formData.append("audioFile", mediaFile); // The backend expects this key for both audio and video
+
       const backendUrl = "https://pulsevest-backend.onrender.com/analyze";
       const response = await fetch(backendUrl, {
         method: "POST",
@@ -125,6 +132,7 @@ export default function CreatorDashboard() {
     }
   };
 
+  // --- STEP 2: GO LIVE (PUBLISH) ---
   const handleGoLive = async () => {
     if (
       !analysisResult ||
@@ -140,13 +148,16 @@ export default function CreatorDashboard() {
       );
       return;
     }
+
     setIsLoading(true);
     setLoadingMessage("Uploading media to Cloudinary...");
     setApiError(null);
+
     try {
       const formData = new FormData();
       formData.append("mediaFile", mediaFile);
       formData.append("coverImage", coverImage);
+
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
@@ -178,6 +189,7 @@ export default function CreatorDashboard() {
         current: 0,
         creator: stageName,
       };
+
       const existingProjects = JSON.parse(
         localStorage.getItem("pulsevest_projects") || "[]"
       );
@@ -187,8 +199,14 @@ export default function CreatorDashboard() {
         JSON.stringify(existingProjects)
       );
 
-      alert(`SUCCESS! Your project "${title}" is now LIVE!`);
+      alert(
+        `SUCCESS! Your project "${title}" is now LIVE! Investors can see it.`
+      );
+
+      // --- THIS IS THE REDIRECT YOU COMMANDED ---
       setView("dashboard");
+
+      // Reset the form for the next project
       setTitle("");
       setStageName("");
       setRealName("");
@@ -205,6 +223,11 @@ export default function CreatorDashboard() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSelectProject = (project: LiveProject) => {
+    setSelectedProject(project);
+    setView("projectDetail");
   };
 
   const handleSaveProjectChanges = (updatedProject: LiveProject) => {
@@ -233,11 +256,6 @@ export default function CreatorDashboard() {
     localStorage.setItem("pulsevest_projects", JSON.stringify(updatedProjects));
     alert("Project deleted.");
     setView("dashboard");
-  };
-
-  const handleSelectProject = (project: LiveProject) => {
-    setSelectedProject(project);
-    setView("projectDetail");
   };
 
   const totalFunding = liveProjects.reduce((sum, p) => sum + p.current, 0);
