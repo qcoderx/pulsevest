@@ -5,8 +5,8 @@ import { Loader2 } from "lucide-react";
 import { ProjectCard } from "@/components/investor/ProjectCard";
 import { InvestmentModal } from "@/components/investor/InvestmentModal";
 import { InvestorProjectView } from "@/components/investor/InvestorProjectView";
-// --- THIS IS THE CRITICAL FIX: We now import the single, definitive project type ---
-import { LiveProject } from "@/app/creator/dashboard/page";
+// --- This is the critical import from your new master types file ---
+import { LiveProject } from "@/types";
 
 export default function InvestorDashboard() {
   const [projects, setProjects] = useState<LiveProject[]>([]);

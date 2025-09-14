@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { ArrowLeft, Edit, Save, Sparkles, Trash2, X } from "lucide-react";
-import { LiveProject } from "@/app/creator/dashboard/page";
+// --- This is the critical import from your new master types file ---
+import { LiveProject } from "@/types";
 import { MediaViewer } from "@/components/investor/MediaViewer";
 import { PulseScoreOrbital } from "@/components/investor/PulseScoreOrbital";
 import { Button } from "@/components/ui/Button";
@@ -32,7 +33,7 @@ export function ProjectInfo({
 }: ProjectInfoProps) {
   const [isEditing, setIsEditing] = useState(false);
 
-  // Local state for the edit form
+  // Local state for the edit form, pre-filled with project data
   const [title, setTitle] = useState(project.title);
   const [description, setDescription] = useState(project.description);
   const [fundingGoal, setFundingGoal] = useState(String(project.fundingGoal));
@@ -47,10 +48,11 @@ export function ProjectInfo({
       fundingReason,
     };
     onSave(updatedProject);
-    setIsEditing(false);
+    setIsEditing(false); // Exit edit mode after saving
   };
 
   const handleDelete = () => {
+    // We use a browser confirm dialog for this destructive action
     if (
       window.confirm(
         `Are you sure you want to permanently delete "${project.title}"? This action cannot be undone.`
@@ -60,7 +62,8 @@ export function ProjectInfo({
     }
   };
 
-  const fundingPercentage = (project.current / project.fundingGoal) * 100;
+  const fundingPercentage =
+    project.fundingGoal > 0 ? (project.current / project.fundingGoal) * 100 : 0;
 
   return (
     <div className="animate-fade-in">
@@ -72,7 +75,7 @@ export function ProjectInfo({
         <span>Back to Dashboard</span>
       </button>
       <div className="lg:grid lg:grid-cols-5 lg:gap-12">
-        {/* LEFT COLUMN: THE ART */}
+        {/* LEFT COLUMN: THE ART & ACTIONS */}
         <div className="lg:col-span-2">
           <MediaViewer project={project} />
           <div className="mt-6 flex space-x-2">
@@ -108,11 +111,14 @@ export function ProjectInfo({
             Delete Project
           </Button>
         </div>
-        {/* RIGHT COLUMN: THE DATA */}
+        {/* RIGHT COLUMN: THE DATA & ANALYSIS */}
         <div className="lg:col-span-3 mt-8 lg:mt-0 space-y-8">
           {isEditing ? (
             <Card>
-              <CardContent className="pt-6 space-y-4">
+              <CardHeader>
+                <CardTitle>Editing Project Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -189,7 +195,7 @@ export function ProjectInfo({
             <CardHeader className="items-center">
               <CardTitle>Pulse Score Analysis</CardTitle>
             </CardHeader>
-            <CardContent className="flex justify-center pl-8">
+            <CardContent className="flex justify-center overflow-hidden">
               <PulseScoreOrbital project={project} />
             </CardContent>
             {project.suggestions && (

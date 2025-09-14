@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import { Score } from "@/app/creator/dashboard/page";
+import React, { useState, useEffect } from "react";
+// --- This is the definitive import from your master blueprint ---
+import { Score } from "@/types";
 import { cn } from "@/lib/utils";
 
 interface Project {
@@ -15,12 +16,24 @@ interface PulseScoreOrbitalProps {
 }
 
 /**
- * A dynamic, orbiting visualization of the Pulse Score.
+ * A dynamic, multimodal, orbiting visualization of the Pulse Score.
  * Re-engineered with stable, non-rotating text and a single, fixed tooltip area.
  */
 export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
   const radius = 140;
+  const [rotation, setRotation] = useState(0);
   const [hoveredNode, setHoveredNode] = useState<Score | null>(null);
+
+  // This effect creates a smooth, continuous rotation for the planet positions
+  useEffect(() => {
+    let animationFrameId: number;
+    const animate = (time: number) => {
+      setRotation(time / 100); // Control rotation speed
+      animationFrameId = requestAnimationFrame(animate);
+    };
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, []);
 
   const findScoreObject = (category: string): Score => {
     const defaultScore = {
@@ -68,9 +81,10 @@ export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
         </div>
 
         {/* The Revolving container for the planets */}
-        <div className="w-full h-full animate-spin-slow">
+        <div className="w-full h-full">
           {nodes.map((node, index) => {
-            const angleRad = (node.angle * Math.PI) / 180;
+            const currentAngle = node.angle + rotation;
+            const angleRad = (currentAngle * Math.PI) / 180;
             const x = Math.cos(angleRad) * radius;
             const y = Math.sin(angleRad) * radius;
 
@@ -84,8 +98,11 @@ export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
                 onMouseEnter={() => setHoveredNode(node.data)}
                 onMouseLeave={() => setHoveredNode(null)}
               >
-                {/* The Planet: This circle counter-rotates to keep text stable */}
-                <div className="w-28 h-28 bg-card border border-border rounded-full flex flex-col items-center justify-center transition-transform duration-300 hover:scale-110 hover:border-primary shadow-lg animate-spin-slow-reverse">
+                {/* The Planet: This circle counter-rotates its content to keep it stable */}
+                <div
+                  className="w-28 h-28 bg-card border border-border rounded-full flex flex-col items-center justify-center transition-transform duration-300 hover:scale-110 hover:border-primary shadow-lg"
+                  style={{ transform: `rotate(${-rotation}deg)` }} // The counter-rotation magic
+                >
                   <span className="font-satoshi text-3xl font-bold">
                     {node.data.score}
                   </span>

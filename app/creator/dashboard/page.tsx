@@ -26,36 +26,13 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Textarea } from "@/components/ui/Textarea";
 import { StatCard } from "@/components/creator/StatCard";
+import { ProjectCard } from "@/components/investor/ProjectCard";
+import { ProjectInfo } from "@/components/creator/ProjectInfo";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { ProjectInfo } from "@/components/creator/ProjectInfo"; // The new command center
-import { ProjectCard } from "@/components/investor/ProjectCard"; // Re-using for consistency
+// --- THE CRITICAL FIX: We now import from the definitive types file ---
+import { LiveProject, Score } from "@/types";
 
-// --- DEFINITIVE PROJECT INTERFACES ---
-// We export these so ProjectInfo can use them
-export interface Score {
-  category: string;
-  score: number;
-  explanation: string;
-}
-// --- THIS IS THE CRITICAL FIX: The ID is now a number ---
-export interface LiveProject {
-  id: number;
-  title: string;
-  stageName: string;
-  realName: string;
-  description: string;
-  fundingGoal: number;
-  fundingReason: string;
-  mediaUrl: string;
-  imageUrl: string;
-  mediaType: "audio" | "video";
-  createdAt: string;
-  pulseScore: number;
-  current: number;
-  creator: string;
-  suggestions?: string;
-  scores?: Score[];
-}
+// The AnalysisResult is now defined locally as it's only used here
 interface AnalysisResult {
   pulseScore: number;
   scores: Score[];
@@ -89,7 +66,6 @@ export default function CreatorDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
 
-  // --- ENGINE TO MAKE THE DASHBOARD LIVE ---
   useEffect(() => {
     if (view === "dashboard") {
       try {
@@ -99,7 +75,6 @@ export default function CreatorDashboard() {
         setLiveProjects(storedProjects.reverse());
       } catch (error) {
         console.error("Failed to load projects from localStorage", error);
-        setLiveProjects([]);
       }
     }
   }, [view]);
@@ -119,12 +94,10 @@ export default function CreatorDashboard() {
       );
       return;
     }
-
     setIsLoading(true);
     setLoadingMessage("Contacting analysis engine...");
     setApiError(null);
     setAnalysisResult(null);
-
     try {
       const formData = new FormData();
       formData.append("audioFile", mediaFile);
@@ -188,7 +161,6 @@ export default function CreatorDashboard() {
       const { mediaUrl, imageUrl } = await response.json();
 
       const newProject: LiveProject = {
-        // --- THIS IS THE CRITICAL FIX: Using a number for the ID ---
         id: Date.now(),
         title,
         stageName,
@@ -206,7 +178,6 @@ export default function CreatorDashboard() {
         current: 0,
         creator: stageName,
       };
-
       const existingProjects = JSON.parse(
         localStorage.getItem("pulsevest_projects") || "[]"
       );
@@ -236,7 +207,6 @@ export default function CreatorDashboard() {
     }
   };
 
-  // --- NEW HANDLERS FOR THE ProjectInfo COMPONENT ---
   const handleSaveProjectChanges = (updatedProject: LiveProject) => {
     const existingProjects: LiveProject[] = JSON.parse(
       localStorage.getItem("pulsevest_projects") || "[]"
@@ -252,13 +222,10 @@ export default function CreatorDashboard() {
       );
       alert("Changes saved!");
       setView("dashboard");
-    } else {
-      alert("Error: Could not find project to update.");
     }
   };
 
   const handleDeleteProject = (projectId: number) => {
-    // ID is now a number
     const existingProjects: LiveProject[] = JSON.parse(
       localStorage.getItem("pulsevest_projects") || "[]"
     );
@@ -324,7 +291,7 @@ export default function CreatorDashboard() {
                   <Input
                     value={stageName}
                     onChange={(e) => setStageName(e.target.value)}
-                    placeholder="Your Stage Name (e.g., Jide Martins)"
+                    placeholder="Your Stage Name"
                     required
                   />
                 </CardContent>
@@ -337,13 +304,13 @@ export default function CreatorDashboard() {
                   <Input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Project Title (e.g., Eko Cyber)"
+                    placeholder="Project Title"
                     required
                   />
                   <Textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="A brief, powerful description of your project..."
+                    placeholder="A brief description..."
                   />
                 </CardContent>
               </Card>
@@ -361,7 +328,7 @@ export default function CreatorDashboard() {
                   <Textarea
                     value={fundingReason}
                     onChange={(e) => setFundingReason(e.target.value)}
-                    placeholder="Why do you need this funding? What will it be used for?"
+                    placeholder="Why you need this funding..."
                   />
                 </CardContent>
               </Card>
@@ -374,7 +341,7 @@ export default function CreatorDashboard() {
                 </CardHeader>
                 <CardContent>
                   <Label htmlFor="media-file-upload" className="cursor-pointer">
-                    <div className="mt-1 flex justify-center h-48 items-center px-6 pt-5 pb-6 border-2 border-border border-dashed rounded-md hover:border-primary transition-colors">
+                    <div className="mt-1 flex justify-center h-48 items-center px-6 pt-5 pb-6 border-2 border-border border-dashed rounded-md hover:border-primary">
                       <div className="space-y-1 text-center">
                         {mediaFile ? (
                           <>
@@ -383,14 +350,12 @@ export default function CreatorDashboard() {
                             ) : (
                               <Film className="mx-auto h-12 w-12 text-primary" />
                             )}
-                            <p className="font-semibold text-foreground">
-                              {mediaFile.name}
-                            </p>
+                            <p className="font-semibold">{mediaFile.name}</p>
                           </>
                         ) : (
                           <>
                             <UploadCloud className="mx-auto h-12 w-12 text-muted" />
-                            <p className="text-sm text-muted">
+                            <p className="text-sm">
                               <span className="font-semibold text-primary">
                                 Click to upload media
                               </span>
@@ -461,7 +426,7 @@ export default function CreatorDashboard() {
                 </p>
               </div>
               <div className="mt-8 border-t border-border pt-6 space-y-6">
-                {analysisResult.scores?.map((item) => (
+                {analysisResult.scores.map((item) => (
                   <div key={item.category}>
                     <div className="flex justify-between items-center mb-1">
                       <h4 className="font-satoshi font-bold text-lg">
@@ -501,19 +466,17 @@ export default function CreatorDashboard() {
                     htmlFor="cover-image-upload"
                     className="cursor-pointer"
                   >
-                    <div className="mt-1 flex justify-center h-48 items-center px-6 pt-5 pb-6 border-2 border-border border-dashed rounded-md hover:border-primary transition-colors">
+                    <div className="mt-1 flex justify-center h-48 items-center px-6 pt-5 pb-6 border-2 border-border border-dashed rounded-md hover:border-primary">
                       <div className="space-y-1 text-center">
                         {coverImage ? (
                           <>
                             <ImageIcon className="mx-auto h-12 w-12 text-primary" />
-                            <p className="font-semibold text-foreground">
-                              {coverImage.name}
-                            </p>
+                            <p className="font-semibold">{coverImage.name}</p>
                           </>
                         ) : (
                           <>
                             <UploadCloud className="mx-auto h-12 w-12 text-muted" />
-                            <p className="text-sm text-muted">
+                            <p className="text-sm">
                               <span className="font-semibold text-primary">
                                 Click to upload image
                               </span>
@@ -606,20 +569,14 @@ export default function CreatorDashboard() {
                       onClick={() => handleSelectProject(p)}
                     >
                       <ProjectCard
-                        project={{
-                          ...p,
-                          current: p.current,
-                          goal: p.fundingGoal,
-                        }}
+                        project={{ ...p, goal: p.fundingGoal }}
                         onSelect={() => {}}
                       />
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="mt-4 text-muted">
-                  You have no live projects yet.
-                </p>
+                <p className="text-muted">You have no live projects yet.</p>
               )}
             </div>
             <button

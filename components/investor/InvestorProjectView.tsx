@@ -1,8 +1,8 @@
 "use client";
 
 import { ArrowLeft, Sparkles } from "lucide-react";
-// This is the same, shared interface from the creator's side
-import { LiveProject } from "@/app/creator/dashboard/page";
+// --- This is the critical import from your new master types file ---
+import { LiveProject } from "@/types";
 import { MediaViewer } from "@/components/investor/MediaViewer";
 import { PulseScoreOrbital } from "@/components/investor/PulseScoreOrbital";
 import { Button } from "@/components/ui/Button";
@@ -21,12 +21,17 @@ interface InvestorProjectViewProps {
   onInvest: () => void; // A simple function to open the modal
 }
 
+/**
+ * The definitive, read-only view for an investor to analyze a project.
+ * It is a perfect, uncluttered mirror of the creator's command center.
+ */
 export function InvestorProjectView({
   project,
   onBack,
   onInvest,
 }: InvestorProjectViewProps) {
-  const fundingPercentage = (project.current / project.fundingGoal) * 100;
+  const fundingPercentage =
+    project.fundingGoal > 0 ? (project.current / project.fundingGoal) * 100 : 0;
 
   return (
     <div className="animate-fade-in">
@@ -38,7 +43,7 @@ export function InvestorProjectView({
         <span>Back to Discovery</span>
       </button>
       <div className="lg:grid lg:grid-cols-5 lg:gap-12">
-        {/* LEFT COLUMN: THE ART */}
+        {/* LEFT COLUMN: THE ART & THE ACTION */}
         <div className="lg:col-span-2">
           <MediaViewer project={project} />
           <Button
@@ -49,7 +54,7 @@ export function InvestorProjectView({
             Invest Now
           </Button>
         </div>
-        {/* RIGHT COLUMN: THE DATA */}
+        {/* RIGHT COLUMN: THE DATA & ANALYSIS */}
         <div className="lg:col-span-3 mt-8 lg:mt-0 space-y-8">
           <div>
             <h2 className="font-satoshi text-5xl font-extrabold">
