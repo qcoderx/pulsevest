@@ -3,10 +3,10 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { cn } from "@/lib/utils";
 
-// This interface now uses a number for the ID and a flexible score array,
-// perfectly matching the LiveProject interface.
-interface Project {
-  id: number | string; // Allow string for compatibility if needed elsewhere
+// This interface is now perfectly aligned with the data provided by the InvestorDashboard.
+// It is designed to be lean, fast, and display the essential "first look" information.
+interface ProjectForCard {
+  id: number;
   title: string;
   creator: string;
   imageUrl: string;
@@ -16,16 +16,18 @@ interface Project {
 }
 
 interface ProjectCardProps {
-  project: Project;
+  project: ProjectForCard;
   onSelect: () => void;
 }
 
 /**
  * The primary component for displaying a project on the investor discovery feed.
- * Re-engineered to work with the final LiveProject data structure.
+ * It is engineered to be visually arresting and informationally dense, yet instantly scannable.
  */
 export function ProjectCard({ project, onSelect }: ProjectCardProps) {
-  const fundingPercentage = (project.current / project.goal) * 100;
+  // Gracefully handle cases where goal might be 0 to prevent division errors
+  const fundingPercentage =
+    project.goal > 0 ? (project.current / project.goal) * 100 : 0;
 
   return (
     <div onClick={onSelect} className="cursor-pointer group">
