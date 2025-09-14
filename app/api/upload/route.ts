@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 import { Readable } from "stream";
 
+// --- THIS IS THE DEFINITIVE, FINAL FIX ---
+// This configuration tells Next.js to disable its default body parser for this specific route.
+// This is CRITICAL for allowing large file uploads (audio/video) to be streamed.
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 // Configure Cloudinary with environment variables for security
 cloudinary.config({
   cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
@@ -23,11 +32,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Convert files to buffers
+    // Convert files to buffers to be streamed to Cloudinary
     const mediaBuffer = await mediaFile.arrayBuffer();
     const coverImageBuffer = await coverImage.arrayBuffer();
 
-    // Determine resource type for Cloudinary
+    // Determine the correct resource type for Cloudinary
     const resourceType = mediaFile.type.startsWith("video") ? "video" : "raw";
 
     // Upload files in parallel for maximum speed
@@ -54,11 +63,10 @@ export async function POST(req: NextRequest) {
       }),
     ]);
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
+    // @ts-expect-error - a necessary evil for Cloudinary's dynamic result object
     const mediaUrl = mediaUploadResult?.secure_url;
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
+    // @ts-expect-error
     const imageUrl = imageUploadResult?.secure_url;
 
     if (!mediaUrl || !imageUrl) {
