@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-// --- This is the definitive import from your master blueprint ---
 import { Score } from "@/types";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "../ui/Card";
 
 interface Project {
   pulseScore: number;
@@ -16,19 +16,17 @@ interface PulseScoreOrbitalProps {
 }
 
 /**
- * A dynamic, multimodal, orbiting visualization of the Pulse Score.
- * Re-engineered with stable, non-rotating text and a single, fixed tooltip area.
+ * A dynamic, multimodal, and FULLY RESPONSIVE orbiting visualization of the Pulse Score.
+ * Re-engineered with a mobile-first design, tap interactions, and a clear, readable layout on all screen sizes.
  */
 export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
-  const radius = 140;
   const [rotation, setRotation] = useState(0);
-  const [hoveredNode, setHoveredNode] = useState<Score | null>(null);
+  const [activeNode, setActiveNode] = useState<Score | null>(null);
 
-  // This effect creates a smooth, continuous rotation for the planet positions
   useEffect(() => {
     let animationFrameId: number;
     const animate = (time: number) => {
-      setRotation(time / 100); // Control rotation speed
+      setRotation(time / 100);
       animationFrameId = requestAnimationFrame(animate);
     };
     animationFrameId = requestAnimationFrame(animate);
@@ -68,19 +66,31 @@ export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
         { data: findScoreObject("genre"), label: "Genre", angle: 180 },
       ];
 
+  // --- RESPONSIVE SIZING ---
+  const radius = 120; // Slightly smaller radius for a tighter mobile feel
+  const planetSize = "w-24 h-24"; // Smaller planets for mobile
+  const sunSize = "w-32 h-32";
+  const orbitalSize = "w-72 h-72";
+
   return (
-    <div className="flex items-center justify-center space-x-8">
+    // The main container is now a column on mobile and a row on desktop
+    <div className="flex flex-col lg:flex-row items-center justify-center lg:space-x-8 w-full">
       {/* Main Orbital System */}
-      <div className="relative w-80 h-80 flex-shrink-0">
+      <div className={cn("relative flex-shrink-0", orbitalSize)}>
         {/* The Sun: Central Pulse Score */}
-        <div className="absolute inset-0 m-auto z-10 w-40 h-40 bg-secondary rounded-full flex flex-col items-center justify-center border-2 border-white/20 shadow-2xl shadow-secondary/30">
-          <span className="font-satoshi text-6xl font-extrabold">
+        <div
+          className={cn(
+            "absolute inset-0 m-auto z-10 rounded-full flex flex-col items-center justify-center border-2 border-white/20 shadow-2xl shadow-secondary/30 bg-secondary",
+            sunSize
+          )}
+        >
+          <span className="font-satoshi text-5xl font-extrabold">
             {project.pulseScore ? Math.round(project.pulseScore) : "--"}
           </span>
-          <span className="text-sm text-white/70 tracking-widest">OVERALL</span>
+          <span className="text-xs text-white/70 tracking-widest">OVERALL</span>
         </div>
 
-        {/* The Revolving container for the planets */}
+        {/* The Revolving Planets Container */}
         <div className="w-full h-full">
           {nodes.map((node, index) => {
             const currentAngle = node.angle + rotation;
@@ -91,17 +101,20 @@ export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
             return (
               <div
                 key={index}
-                className="absolute top-1/2 left-1/2"
+                className="absolute top-1/2 left-1/2 cursor-pointer"
                 style={{
                   transform: `translate(-50%, -50%) translate(${x}px, ${y}px)`,
                 }}
-                onMouseEnter={() => setHoveredNode(node.data)}
-                onMouseLeave={() => setHoveredNode(null)}
+                onMouseEnter={() => setActiveNode(node.data)}
+                onMouseLeave={() => setActiveNode(null)}
+                onClick={() => setActiveNode(node.data)} // TAP interaction for mobile
               >
-                {/* The Planet: This circle counter-rotates its content to keep it stable */}
                 <div
-                  className="w-28 h-28 bg-card border border-border rounded-full flex flex-col items-center justify-center transition-transform duration-300 hover:scale-110 hover:border-primary shadow-lg"
-                  style={{ transform: `rotate(${-rotation}deg)` }} // The counter-rotation magic
+                  className={cn(
+                    "bg-card border border-border rounded-full flex flex-col items-center justify-center transition-transform duration-300 hover:scale-110 hover:border-primary shadow-lg",
+                    planetSize
+                  )}
+                  style={{ transform: `rotate(${-rotation}deg)` }}
                 >
                   <span className="font-satoshi text-3xl font-bold">
                     {node.data.score}
@@ -114,38 +127,31 @@ export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
         </div>
       </div>
 
-      {/* The Hover Box: A single, fixed tooltip area to the right */}
-      <div className="relative w-64 h-48">
-        <div
+      {/* The Explanation Box: Now appears below on mobile */}
+      <div className="w-full lg:w-64 mt-8 lg:mt-0 h-40">
+        <Card
           className={cn(
-            "absolute inset-0 p-4 bg-card border border-border rounded-lg shadow-2xl transition-all duration-300 flex flex-col justify-center",
-            hoveredNode
-              ? "opacity-100 scale-100"
-              : "opacity-0 scale-95 pointer-events-none"
+            "h-full transition-all duration-300 flex flex-col justify-center text-center",
+            activeNode ? "opacity-100 scale-100" : "opacity-50 scale-95"
           )}
         >
-          {hoveredNode && (
-            <div className="text-center animate-fade-in">
-              <h4 className="font-satoshi font-bold text-lg text-primary">
-                {hoveredNode.category}
-              </h4>
-              <p className="text-sm text-foreground mt-2">
-                {hoveredNode.explanation}
+          <CardContent className="p-4">
+            {activeNode ? (
+              <div className="animate-fade-in">
+                <h4 className="font-satoshi font-bold text-lg text-primary">
+                  {activeNode.category}
+                </h4>
+                <p className="text-sm text-foreground mt-2">
+                  {activeNode.explanation}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted">
+                Tap or hover over a score to see the AI&apos;s analysis.
               </p>
-            </div>
-          )}
-        </div>
-        {/* Placeholder to maintain layout when not hovered */}
-        <div
-          className={cn(
-            "absolute inset-0 p-4 flex flex-col justify-center items-center text-center text-muted transition-opacity duration-300",
-            hoveredNode ? "opacity-0" : "opacity-100"
-          )}
-        >
-          <p className="text-sm">
-            Hover over a score to see the AI&apos;s analysis.
-          </p>
-        </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

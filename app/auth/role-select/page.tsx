@@ -5,7 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/Card";
-import { Film, LineChart } from "lucide-react";
+import { Film, LineChart, Music } from "lucide-react";
 import Link from "next/link";
 
 export default function RoleSelectPage() {
@@ -15,20 +15,30 @@ export default function RoleSelectPage() {
         Join the Movement
       </h1>
       <p className="text-muted text-lg mb-12 text-center">
-        Are you here to create or to invest?
+        Are you here to create, invest, or discover?
       </p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl">
         <RoleCard
           role="creator"
           title="I am a Creator"
           description="Bring your vision to life and connect with backers who believe in you."
           icon={<Film className="w-12 h-12 text-primary" />}
+          href="/creator/dashboard"
         />
         <RoleCard
           role="investor"
           title="I am an Investor"
           description="Discover and fund the next wave of African creative genius."
           icon={<LineChart className="w-12 h-12 text-secondary" />}
+          href="/investor/dashboard"
+        />
+        {/* --- THE NEW FAN ROLE --- */}
+        <RoleCard
+          role="fan"
+          title="I am a Fan"
+          description="Explore projects, review your favorites, and earn rewards from artists."
+          icon={<Music className="w-12 h-12 text-green-500" />}
+          href="/fan/dashboard"
         />
       </div>
     </div>
@@ -40,14 +50,16 @@ function RoleCard({
   title,
   description,
   icon,
+  href,
 }: {
-  role: "creator" | "investor";
+  role: string;
   title: string;
   description: string;
   icon: React.ReactNode;
+  href: string;
 }) {
   return (
-    <Link href={`/auth/signup/${role}`} className="block">
+    <Link href={href} className="block">
       <Card className="h-full text-center hover:border-primary transition-all duration-300 hover:scale-105 cursor-pointer flex flex-col justify-between p-8">
         <CardHeader className="items-center">
           {icon}
