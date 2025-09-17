@@ -1,3 +1,4 @@
+// pulsevest/app/creator/dashboard/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -14,6 +15,7 @@ import {
   UploadCloud,
   Users,
 } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider"; // Import the auth hook
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -31,9 +33,6 @@ import { ProjectInfo } from "@/components/creator/ProjectInfo";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { LiveProject, Score } from "@/types";
 
-// In a real application, this would come from an authentication hook like useAuth()
-const MOCK_USER = { uid: "creator123", name: "Jide Martins" };
-
 interface AnalysisResult {
   pulseScore: number;
   scores: Score[];
@@ -42,6 +41,7 @@ interface AnalysisResult {
 type View = "dashboard" | "creation" | "loading" | "results" | "projectDetail";
 
 export default function CreatorDashboard() {
+  const { user, isLoading: isAuthLoading } = useAuth(); // Use the real user from auth
   const [view, setView] = useState<View>("dashboard");
   const [liveProjects, setLiveProjects] = useState<LiveProject[]>([]);
   const [selectedProject, setSelectedProject] = useState<LiveProject | null>(
@@ -65,11 +65,11 @@ export default function CreatorDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
 
-  // --- ENGINE TO MAKE THE DASHBOARD LIVE (FETCHES FROM MONGODB) ---
   useEffect(() => {
-    if (view === "dashboard" && MOCK_USER) {
+    // Only fetch projects if we are on the dashboard, not loading auth, and have a user
+    if (view === "dashboard" && !isAuthLoading && user) {
       setIsLoading(true);
-      fetch(`/api/projects?creatorId=${MOCK_USER.uid}`)
+      fetch(`/api/projects?creatorId=${user.uid}`) // Use the REAL user ID
         .then((res) => res.json())
         .then((data) => {
           if (data.projects) {
@@ -81,8 +81,9 @@ export default function CreatorDashboard() {
         .catch((err) => console.error("Failed to fetch projects:", err))
         .finally(() => setIsLoading(false));
     }
-  }, [view]);
+  }, [view, user, isAuthLoading]);
 
+  // (Keep all your handler functions: handleMediaFileChange, handleAnalyze, handleGoLive, etc. The only change is using user.uid instead of MOCK_USER.uid)
   const handleMediaFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setMediaFile(e.target.files[0]);
   };
@@ -136,7 +137,7 @@ export default function CreatorDashboard() {
       !fundingGoal ||
       !fundingReason ||
       !realName ||
-      !MOCK_USER
+      !user // Check for real user
     ) {
       alert("Please ensure all fields are complete and you are logged in.");
       return;
@@ -160,7 +161,7 @@ export default function CreatorDashboard() {
 
       const newProject: Omit<LiveProject, "_id"> = {
         id: `proj_${Date.now()}`,
-        creatorId: MOCK_USER.uid,
+        creatorId: user.uid, // Use REAL user ID
         title,
         stageName,
         realName,
@@ -265,6 +266,15 @@ export default function CreatorDashboard() {
           liveProjects.length
         ).toFixed(0)
       : "--";
+
+  // Show loading spinner while checking auth state
+  if (isAuthLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-16 h-16 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const renderContent = () => {
     switch (view) {
@@ -625,10 +635,10 @@ export default function CreatorDashboard() {
         </h1>
         <div className="flex items-center space-x-4">
           <span className="text-sm text-muted hidden sm:block">
-            Jide Martins
+            {user?.displayName || user?.email}
           </span>
           <img
-            src="https://i.pravatar.cc/150?u=jide"
+            src={user?.photoURL || "/placeholder-user.jpg"}
             alt="User Avatar"
             className="w-10 h-10 rounded-full"
           />

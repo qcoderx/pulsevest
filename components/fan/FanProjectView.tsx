@@ -1,3 +1,4 @@
+// pulsevest/components/fan/FanProjectView.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -9,6 +10,7 @@ import {
   Sparkles,
   Star,
 } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider"; // Import the auth hook
 import { LiveProject, Review } from "@/types";
 import { MediaViewer } from "@/components/investor/MediaViewer";
 import { PulseScoreOrbital } from "@/components/investor/PulseScoreOrbital";
@@ -17,14 +19,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Textarea } from "../ui/Textarea";
 import { cn } from "@/lib/utils";
 
-// --- THIS IS THE DEFINITIVE, CORRECTED BLUEPRINT ---
 interface FanProjectViewProps {
   project: LiveProject;
   onBack: () => void;
   isFavorite: boolean;
   onToggleFavorite: () => void;
-  isInPlaylist: boolean; // This property is now correctly defined
-  onTogglePlaylist: () => void; // This property is now correctly defined
+  isInPlaylist: boolean;
+  onTogglePlaylist: () => void;
 }
 
 export function FanProjectView({
@@ -35,6 +36,7 @@ export function FanProjectView({
   isInPlaylist,
   onTogglePlaylist,
 }: FanProjectViewProps) {
+  const { user } = useAuth(); // Get the authenticated user
   const [reviews, setReviews] = useState<Review[]>([]);
   const [newComment, setNewComment] = useState("");
   const [newRating, setNewRating] = useState(0);
@@ -56,10 +58,18 @@ export function FanProjectView({
       alert("Please leave a rating and a comment.");
       return;
     }
+    // --- THIS IS THE FIX ---
+    // We now include the fanId from the logged-in user.
+    if (!user) {
+      alert("You must be logged in to leave a review.");
+      return;
+    }
+
     const newReview: Review = {
       id: new Date().toISOString(),
       projectId: project.id,
-      fanName: "AfrobeatLover9ja",
+      fanId: user.uid, // Add the user's ID
+      fanName: user.displayName || "Anonymous Fan", // Use user's display name
       rating: newRating,
       comment: newComment,
       createdAt: new Date().toISOString(),
@@ -70,8 +80,6 @@ export function FanProjectView({
     setNewComment("");
     setNewRating(0);
   };
-
-  const fundingPercentage = (project.current / project.fundingGoal) * 100;
 
   return (
     <div className="animate-fade-in">

@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase"; // Import your initialized auth instance
+import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -25,38 +25,58 @@ export default function SignupPage({
   const router = useRouter();
   const { role } = params;
 
-  // State to manage form inputs, loading, and errors
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const isCreator = role === "creator";
-  const title = isCreator ? "Creator Signup" : "Investor Signup";
+  const title = `${role.charAt(0).toUpperCase() + role.slice(1)} Signup`;
   const description = isCreator
     ? "Create your account to start funding your vision."
     : "Join to discover and invest in amazing projects.";
 
   const handleSignup = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!name) {
+      setError("Please enter your full name.");
+      return;
+    }
     setIsLoading(true);
     setError(null);
 
     try {
-      // Use Firebase to create a new user!
+      // Step 1: Create the user in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
         password
       );
-      console.log("Firebase user created:", userCredential.user);
+      const user = userCredential.user;
+      console.log("Firebase user created:", user);
 
-      // Redirect to the correct dashboard on success
+      // Step 2: Create the user profile in our MongoDB database
+      const profileResponse = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.uid,
+          name: name,
+          email: user.email,
+          role: role,
+        }),
+      });
+
+      if (!profileResponse.ok) {
+        throw new Error("Failed to create user profile in database.");
+      }
+
+      // Step 3: Redirect to the correct dashboard
       const destination = `/${role}/dashboard`;
       router.push(destination);
     } catch (err: any) {
-      // Handle Firebase errors and show a user-friendly message
-      console.error("Firebase Auth Error:", err);
+      console.error("Signup Error:", err);
       let errorMessage = "Failed to sign up. Please try again.";
       if (err.code === "auth/email-already-in-use") {
         errorMessage = "This email is already in use. Please log in.";
@@ -80,7 +100,13 @@ export default function SignupPage({
           <form className="space-y-4" onSubmit={handleSignup}>
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
-              <Input id="name" placeholder="Ada Lovelace" required />
+              <Input
+                id="name"
+                placeholder="Ada Lovelace"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>

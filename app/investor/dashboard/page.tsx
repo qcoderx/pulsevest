@@ -2,13 +2,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useAuth } from "@/components/AuthProvider";
+import { Loader2, LogOut } from "lucide-react";
 import { ProjectCard } from "@/components/investor/ProjectCard";
 import { InvestmentModal } from "@/components/investor/InvestmentModal";
 import { InvestorProjectView } from "@/components/investor/InvestorProjectView";
 import { LiveProject } from "@/types";
+import { Button } from "@/components/ui/Button";
 
 export default function InvestorDashboard() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [projects, setProjects] = useState<LiveProject[]>([]);
   const [selectedProject, setSelectedProject] = useState<LiveProject | null>(
     null
@@ -16,8 +23,6 @@ export default function InvestorDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- THIS IS THE DEFINITIVE FIX ---
-  // We now fetch from the database API instead of localStorage.
   useEffect(() => {
     async function fetchProjects() {
       setIsLoading(true);
@@ -28,16 +33,24 @@ export default function InvestorDashboard() {
         }
         const data = await response.json();
         if (data.projects) {
-          setProjects(data.projects); // Newest projects are already first from the API
+          setProjects(data.projects);
         }
       } catch (error) {
         console.error("Failed to fetch projects from API:", error);
       }
       setIsLoading(false);
     }
-
     fetchProjects();
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push("/");
+    } catch (error) {
+      console.error("Failed to log out:", error);
+    }
+  };
 
   const handleSelectProject = (project: LiveProject) => {
     setSelectedProject(project);
@@ -67,13 +80,28 @@ export default function InvestorDashboard() {
 
   return (
     <div className="container mx-auto px-4 py-8 animate-fade-in">
-      <header className="mb-8">
-        <h1 className="font-satoshi text-4xl font-bold">
-          Discover a Masterpiece
-        </h1>
-        <p className="text-muted mt-1">
-          Invest in the future of African creativity.
-        </p>
+      <header className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="font-satoshi text-4xl font-bold">
+            Discover a Masterpiece
+          </h1>
+          <p className="text-muted mt-1">
+            Invest in the future of African creativity.
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-muted hidden sm:block">
+            {user?.displayName || user?.email}
+          </span>
+          <img
+            src={user?.photoURL || "/placeholder-user.jpg"}
+            alt="User Avatar"
+            className="w-10 h-10 rounded-full"
+          />
+          <Button onClick={handleLogout} variant="ghost" size="icon">
+            <LogOut className="w-5 h-5" />
+          </Button>
+        </div>
       </header>
       {isLoading ? (
         <div className="text-center py-20">
@@ -91,7 +119,7 @@ export default function InvestorDashboard() {
         </div>
       ) : (
         <div className="text-center py-20">
-          <h3 className="font-satoshi text-2yl font-bold">
+          <h3 className="font-satoshi text-2xl font-bold">
             The Marketplace is Open
           </h3>
           <p className="text-muted mt-2">

@@ -1,19 +1,23 @@
+// pulsevest/app/fan/dashboard/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useAuth } from "@/components/AuthProvider";
+import { Loader2, LogOut } from "lucide-react";
 import { ProjectCard } from "@/components/investor/ProjectCard";
 import { FanProjectView } from "@/components/fan/FanProjectView";
 import { PlaylistView } from "@/components/fan/PlaylistView";
-import { LiveProject, FanProfile, Review } from "@/types";
+import { LiveProject, FanProfile } from "@/types";
 import { Button } from "@/components/ui/Button";
-
-// In a real application, this would come from an authentication hook like useAuth()
-const MOCK_USER = { uid: "fan123", name: "AfrobeatLover9ja" };
 
 type FanView = "all" | "favorites" | "playlist" | "detail";
 
 export default function FanDashboard() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [view, setView] = useState<FanView>("all");
   const [projects, setProjects] = useState<LiveProject[]>([]);
   const [selectedProject, setSelectedProject] = useState<LiveProject | null>(
@@ -22,12 +26,9 @@ export default function FanDashboard() {
   const [profile, setProfile] = useState<FanProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- THE DEFINITIVE REAL-TIME ENGINE ---
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
-
-      // Fetch all live projects from our new MongoDB API route
       try {
         const projectsResponse = await fetch("/api/projects/all");
         if (!projectsResponse.ok) throw new Error("Failed to fetch projects");
@@ -37,37 +38,47 @@ export default function FanDashboard() {
         console.error("Failed to fetch projects from API:", err);
       }
 
-      // Fan profile is still managed in localStorage for persistence across sessions
-      try {
-        const storedProfile = localStorage.getItem("pulsevest_fan_profile");
-        let fanProfile;
-        if (storedProfile) {
-          fanProfile = JSON.parse(storedProfile);
-        } else {
-          fanProfile = {
-            uid: MOCK_USER.uid,
-            name: MOCK_USER.name,
-            pulsePoints: 100,
-            favorites: [],
-            following: [],
-            playlist: [],
-          };
-          localStorage.setItem(
-            "pulsevest_fan_profile",
-            JSON.stringify(fanProfile)
+      if (user) {
+        try {
+          const storedProfile = localStorage.getItem(
+            `pulsevest_fan_profile_${user.uid}`
           );
+          let fanProfile;
+          if (storedProfile) {
+            fanProfile = JSON.parse(storedProfile);
+          } else {
+            fanProfile = {
+              uid: user.uid,
+              name: user.displayName || "Fan",
+              pulsePoints: 100,
+              favorites: [],
+              following: [],
+              playlist: [],
+            };
+            localStorage.setItem(
+              `pulsevest_fan_profile_${user.uid}`,
+              JSON.stringify(fanProfile)
+            );
+          }
+          if (!fanProfile.playlist) fanProfile.playlist = [];
+          setProfile(fanProfile);
+        } catch (error) {
+          console.error("Failed to parse profile from localStorage", error);
         }
-        if (!fanProfile.playlist) fanProfile.playlist = [];
-        setProfile(fanProfile);
-      } catch (error) {
-        console.error("Failed to parse profile from localStorage", error);
       }
-
       setIsLoading(false);
     }
-
     fetchData();
-  }, [view]); // Refetch data whenever the main view changes to ensure it's up to date
+  }, [view, user]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push("/"); // Redirect to home page after logout
+    } catch (error) {
+      console.error("Failed to log out:", error);
+    }
+  };
 
   const handleSelectProject = (project: LiveProject) => {
     setSelectedProject(project);
@@ -77,14 +88,14 @@ export default function FanDashboard() {
 
   const handleBackToDiscovery = () => {
     setSelectedProject(null);
-    setView("all"); // Always go back to the main discovery feed
+    setView("all");
   };
 
-  // --- FAN-SPECIFIC ACTIONS ---
   const updateProfile = (updatedProfile: FanProfile) => {
+    if (!user) return;
     setProfile(updatedProfile);
     localStorage.setItem(
-      "pulsevest_fan_profile",
+      `pulsevest_fan_profile_${user.uid}`,
       JSON.stringify(updatedProfile)
     );
   };
@@ -105,8 +116,6 @@ export default function FanDashboard() {
     updateProfile({ ...profile, playlist: newPlaylist });
   };
 
-  // --- RENDER LOGIC ---
-  // If a project is selected, we show the detailed view.
   if (view === "detail" && selectedProject && profile) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -128,18 +137,23 @@ export default function FanDashboard() {
 
   return (
     <div className="container mx-auto px-4 py-8 animate-fade-in">
-      <header className="mb-8 flex justify-between items-center">
+      <header className="flex justify-between items-center mb-8">
         <div>
           <h1 className="font-satoshi text-4xl font-bold">The Pulse</h1>
           <p className="text-muted mt-1">
             Discover the heartbeat of African creativity.
           </p>
         </div>
-        <div className="text-right">
-          <p className="font-satoshi text-2xl font-bold text-primary">
-            {profile?.pulsePoints.toLocaleString() || 0}
-          </p>
-          <p className="text-xs text-muted">PulsePoints</p>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="font-satoshi text-2xl font-bold text-primary">
+              {profile?.pulsePoints.toLocaleString() || 0}
+            </p>
+            <p className="text-xs text-muted">PulsePoints</p>
+          </div>
+          <Button onClick={handleLogout} variant="ghost" size="icon">
+            <LogOut className="w-5 h-5" />
+          </Button>
         </div>
       </header>
 
