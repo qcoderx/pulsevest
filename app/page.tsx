@@ -1,34 +1,47 @@
-"use client"; // This must be a Client Component to use state and effects
+// pulsevest/app/page.tsx
+"use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider"; // Import the auth hook
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
-// Define the array of background images located in your /public folder
 const backgroundImages = ["/pic1.png", "/pic2.png", "/pic3.png", "/pic4.png"];
 
 export default function WelcomePage() {
-  // State to keep track of the currently displayed image index
   const [currentIndex, setCurrentIndex] = useState(0);
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
 
-  // useEffect hook to set up the timer for the slideshow
+  // This effect handles the automatic redirection
   useEffect(() => {
-    // Set an interval that runs every 4 seconds (4000 milliseconds)
+    if (!isLoading && user) {
+      // This is a simplified role detection. In a real app, you'd store the role
+      // in Firebase Custom Claims or your database upon signup.
+      // For now, we'll make an educated guess.
+      // You can replace this with a more robust role-checking logic later.
+      const lastPath = localStorage.getItem("last_known_role") || "fan";
+      router.push(`/${lastPath}/dashboard`);
+    }
+  }, [user, isLoading, router]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
-      // Update the current index, looping back to 0 if it reaches the end
       setCurrentIndex((prevIndex) => (prevIndex + 1) % backgroundImages.length);
     }, 4000);
-
-    // This is a crucial cleanup function.
-    // It clears the interval when the component is unmounted to prevent memory leaks.
     return () => clearInterval(interval);
-  }, []); // The empty dependency array ensures this effect runs only once on mount
+  }, []);
+
+  // Don't render the welcome page content if a user is logged in and is being redirected.
+  if (isLoading || user) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <main className="relative flex items-center justify-center h-screen overflow-hidden">
-      {/* Background Image Container */}
       <div className="absolute inset-0 z-0">
         {backgroundImages.map((src, index) => (
           <Image
@@ -40,15 +53,13 @@ export default function WelcomePage() {
               "object-cover transition-opacity duration-1000 ease-in-out",
               index === currentIndex ? "opacity-100" : "opacity-0"
             )}
-            priority={index === 0} // Preload the first image for faster initial load
+            priority={index === 0}
           />
         ))}
       </div>
 
-      {/* Dark Overlay for Text Readability */}
       <div className="absolute inset-0 z-10 bg-black/60"></div>
 
-      {/* Content Layer */}
       <div className="relative z-20 text-center p-5">
         <h1 className="font-satoshi text-5xl md:text-7xl font-extrabold text-white drop-shadow-2xl animate-fade-in-up">
           The Heartbeat of Creativity

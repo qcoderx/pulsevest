@@ -1,3 +1,4 @@
+// pulsevest/app/investor/dashboard/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -5,7 +6,6 @@ import { Loader2 } from "lucide-react";
 import { ProjectCard } from "@/components/investor/ProjectCard";
 import { InvestmentModal } from "@/components/investor/InvestmentModal";
 import { InvestorProjectView } from "@/components/investor/InvestorProjectView";
-// --- This is the critical import from your new master types file ---
 import { LiveProject } from "@/types";
 
 export default function InvestorDashboard() {
@@ -16,30 +16,36 @@ export default function InvestorDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- THE DEFINITIVE LOCALSTORAGE ENGINE ---
+  // --- THIS IS THE DEFINITIVE FIX ---
+  // We now fetch from the database API instead of localStorage.
   useEffect(() => {
-    setIsLoading(true);
-    // We only access localStorage on the client-side to avoid server-side errors
-    try {
-      const storedProjects = localStorage.getItem("pulsevest_projects");
-      if (storedProjects) {
-        setProjects(JSON.parse(storedProjects).reverse()); // .reverse() shows newest projects first
+    async function fetchProjects() {
+      setIsLoading(true);
+      try {
+        const response = await fetch("/api/projects/all");
+        if (!response.ok) {
+          throw new Error("Failed to fetch projects");
+        }
+        const data = await response.json();
+        if (data.projects) {
+          setProjects(data.projects); // Newest projects are already first from the API
+        }
+      } catch (error) {
+        console.error("Failed to fetch projects from API:", error);
       }
-    } catch (error) {
-      console.error("Failed to parse projects from localStorage", error);
+      setIsLoading(false);
     }
-    setIsLoading(false);
+
+    fetchProjects();
   }, []);
 
   const handleSelectProject = (project: LiveProject) => {
     setSelectedProject(project);
-    window.scrollTo(0, 0); // Scroll to top for a smooth transition
+    window.scrollTo(0, 0);
   };
 
   const handleBackToDiscovery = () => setSelectedProject(null);
 
-  // --- RENDER THE CORRECT VIEW ---
-  // If a project is selected, we show the detailed view.
   if (selectedProject) {
     return (
       <>
@@ -59,8 +65,6 @@ export default function InvestorDashboard() {
     );
   }
 
-  // --- RENDER THE DISCOVERY GRID ---
-  // This is the default view when no project is selected.
   return (
     <div className="container mx-auto px-4 py-8 animate-fade-in">
       <header className="mb-8">
@@ -80,7 +84,6 @@ export default function InvestorDashboard() {
           {projects.map((project) => (
             <ProjectCard
               key={project.id}
-              // Adapt the LiveProject data to fit the props expected by ProjectCard
               project={{ ...project, goal: project.fundingGoal }}
               onSelect={() => handleSelectProject(project)}
             />
@@ -88,7 +91,7 @@ export default function InvestorDashboard() {
         </div>
       ) : (
         <div className="text-center py-20">
-          <h3 className="font-satoshi text-2xl font-bold">
+          <h3 className="font-satoshi text-2yl font-bold">
             The Marketplace is Open
           </h3>
           <p className="text-muted mt-2">

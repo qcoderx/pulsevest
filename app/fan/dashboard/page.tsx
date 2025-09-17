@@ -1,19 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  ArrowLeft,
-  Heart,
-  Loader2,
-  ListMusic,
-  Star,
-  UserPlus,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { ProjectCard } from "@/components/investor/ProjectCard";
 import { FanProjectView } from "@/components/fan/FanProjectView";
 import { PlaylistView } from "@/components/fan/PlaylistView";
-import { LiveProject, FanProfile } from "@/types";
+import { LiveProject, FanProfile, Review } from "@/types";
 import { Button } from "@/components/ui/Button";
+
+// In a real application, this would come from an authentication hook like useAuth()
+const MOCK_USER = { uid: "fan123", name: "AfrobeatLover9ja" };
 
 type FanView = "all" | "favorites" | "playlist" | "detail";
 
@@ -26,43 +22,51 @@ export default function FanDashboard() {
   const [profile, setProfile] = useState<FanProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- THE DEFINITIVE LOCALSTORAGE ENGINE ---
+  // --- THE DEFINITIVE REAL-TIME ENGINE ---
   useEffect(() => {
-    setIsLoading(true);
-    try {
-      const storedProjects = localStorage.getItem("pulsevest_projects");
-      const storedProfile = localStorage.getItem("pulsevest_fan_profile");
+    async function fetchData() {
+      setIsLoading(true);
 
-      if (storedProjects) {
-        setProjects(JSON.parse(storedProjects).reverse());
+      // Fetch all live projects from our new MongoDB API route
+      try {
+        const projectsResponse = await fetch("/api/projects/all");
+        if (!projectsResponse.ok) throw new Error("Failed to fetch projects");
+        const projectsData = await projectsResponse.json();
+        if (projectsData.projects) setProjects(projectsData.projects);
+      } catch (err) {
+        console.error("Failed to fetch projects from API:", err);
       }
 
-      let fanProfile;
-      if (storedProfile) {
-        fanProfile = JSON.parse(storedProfile);
-      } else {
-        // Create a default profile if one doesn't exist
-        fanProfile = {
-          name: "AfrobeatLover9ja",
-          pulsePoints: 100,
-          favorites: [],
-          following: [],
-          playlist: [],
-        };
-        localStorage.setItem(
-          "pulsevest_fan_profile",
-          JSON.stringify(fanProfile)
-        );
+      // Fan profile is still managed in localStorage for persistence across sessions
+      try {
+        const storedProfile = localStorage.getItem("pulsevest_fan_profile");
+        let fanProfile;
+        if (storedProfile) {
+          fanProfile = JSON.parse(storedProfile);
+        } else {
+          fanProfile = {
+            uid: MOCK_USER.uid,
+            name: MOCK_USER.name,
+            pulsePoints: 100,
+            favorites: [],
+            following: [],
+            playlist: [],
+          };
+          localStorage.setItem(
+            "pulsevest_fan_profile",
+            JSON.stringify(fanProfile)
+          );
+        }
+        if (!fanProfile.playlist) fanProfile.playlist = [];
+        setProfile(fanProfile);
+      } catch (error) {
+        console.error("Failed to parse profile from localStorage", error);
       }
-      // Ensure profile has a playlist property for backward compatibility
-      if (!fanProfile.playlist) {
-        fanProfile.playlist = [];
-      }
-      setProfile(fanProfile);
-    } catch (error) {
-      console.error("Failed to parse data from localStorage", error);
+
+      setIsLoading(false);
     }
-    setIsLoading(false);
+
+    fetchData();
   }, [view]); // Refetch data whenever the main view changes to ensure it's up to date
 
   const handleSelectProject = (project: LiveProject) => {
@@ -85,7 +89,7 @@ export default function FanDashboard() {
     );
   };
 
-  const handleToggleFavorite = (projectId: number) => {
+  const handleToggleFavorite = (projectId: string) => {
     if (!profile) return;
     const newFavorites = profile.favorites.includes(projectId)
       ? profile.favorites.filter((id) => id !== projectId)
@@ -93,7 +97,7 @@ export default function FanDashboard() {
     updateProfile({ ...profile, favorites: newFavorites });
   };
 
-  const handleTogglePlaylist = (projectId: number) => {
+  const handleTogglePlaylist = (projectId: string) => {
     if (!profile) return;
     const newPlaylist = profile.playlist.includes(projectId)
       ? profile.playlist.filter((id) => id !== projectId)

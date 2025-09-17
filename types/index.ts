@@ -1,3 +1,5 @@
+import { ObjectId } from "mongodb"; // We now import the official MongoDB type
+
 // This file is the single source of truth for our project data structures.
 
 export interface Score {
@@ -7,7 +9,9 @@ export interface Score {
 }
 
 export interface LiveProject {
-  id: number;
+  _id?: ObjectId; // The database's internal ID is an ObjectId
+  id: string; // The public-facing ID we will use
+  creatorId: string;
   title: string;
   stageName: string;
   realName: string;
@@ -25,20 +29,25 @@ export interface LiveProject {
   scores?: Score[];
 }
 
+// --- DEFINITIVE BLUEPRINTS FOR THE FAN ECOSYSTEM ---
+
 export interface Review {
+  _id?: ObjectId;
   id: string;
-  projectId: number;
+  projectId: string; // Corresponds to LiveProject's public 'id'
+  fanId: string; // Corresponds to the Fan's auth ID
   fanName: string;
-  rating: number;
+  rating: number; // 1-5 stars
   comment: string;
   createdAt: string;
 }
 
 export interface FanProfile {
+  _id?: ObjectId;
+  uid: string; // Firebase Auth UID
   name: string;
   pulsePoints: number;
-  favorites: number[]; // Array of project IDs
+  favorites: string[]; // Array of project public 'id's
   following: string[]; // Array of creator stage names
-  // --- THE FINAL, CRITICAL ADDITION ---
-  playlist: number[]; // Array of project IDs
+  playlist: string[]; // Array of project public 'id's
 }

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { ArrowLeft, Edit, Save, Sparkles, Trash2, X } from "lucide-react";
-// --- This is the critical import from your new master types file ---
 import { LiveProject } from "@/types";
 import { MediaViewer } from "@/components/investor/MediaViewer";
 import { PulseScoreOrbital } from "@/components/investor/PulseScoreOrbital";
@@ -22,7 +21,8 @@ interface ProjectInfoProps {
   project: LiveProject;
   onBack: () => void;
   onSave: (updatedProject: LiveProject) => void;
-  onDelete: (projectId: number) => void;
+  // --- THIS IS THE DEFINITIVE FIX: The ID is now correctly a string ---
+  onDelete: (projectId: string) => void;
 }
 
 export function ProjectInfo({
@@ -33,7 +33,7 @@ export function ProjectInfo({
 }: ProjectInfoProps) {
   const [isEditing, setIsEditing] = useState(false);
 
-  // Local state for the edit form, pre-filled with project data
+  // Local state for the edit form
   const [title, setTitle] = useState(project.title);
   const [description, setDescription] = useState(project.description);
   const [fundingGoal, setFundingGoal] = useState(String(project.fundingGoal));
@@ -48,11 +48,10 @@ export function ProjectInfo({
       fundingReason,
     };
     onSave(updatedProject);
-    setIsEditing(false); // Exit edit mode after saving
+    setIsEditing(false);
   };
 
   const handleDelete = () => {
-    // We use a browser confirm dialog for this destructive action
     if (
       window.confirm(
         `Are you sure you want to permanently delete "${project.title}"? This action cannot be undone.`
@@ -75,7 +74,7 @@ export function ProjectInfo({
         <span>Back to Dashboard</span>
       </button>
       <div className="lg:grid lg:grid-cols-5 lg:gap-12">
-        {/* LEFT COLUMN: THE ART & ACTIONS */}
+        {/* LEFT COLUMN: THE ART */}
         <div className="lg:col-span-2">
           <MediaViewer project={project} />
           <div className="mt-6 flex space-x-2">
@@ -111,14 +110,14 @@ export function ProjectInfo({
             Delete Project
           </Button>
         </div>
-        {/* RIGHT COLUMN: THE DATA & ANALYSIS */}
+        {/* RIGHT COLUMN: THE DATA */}
         <div className="lg:col-span-3 mt-8 lg:mt-0 space-y-8">
           {isEditing ? (
             <Card>
               <CardHeader>
                 <CardTitle>Editing Project Details</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="pt-6 space-y-4">
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}

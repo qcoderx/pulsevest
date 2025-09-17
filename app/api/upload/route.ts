@@ -1,84 +1,68 @@
-import { NextRequest, NextResponse } from "next/server";
-import { v2 as cloudinary } from "cloudinary";
+import { v2 as cloudinary } from "cloudinary"
+import { type NextRequest, NextResponse } from "next/server"
 
-// --- THE BLACK BOX RECORDER ---
-// This will print to your Vercel logs and tell us if the keys are missing.
-console.log("--- VERCEL DEPLOYMENT CHECK ---");
-console.log(
-  "Cloudinary Cloud Name:",
-  process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ? "Loaded" : "FATAL: MISSING!"
-);
-console.log(
-  "Cloudinary API Key:",
-  process.env.CLOUDINARY_API_KEY ? "Loaded" : "FATAL: MISSING!"
-);
-console.log(
-  "Cloudinary API Secret:",
-  process.env.CLOUDINARY_API_SECRET ? "Loaded" : "FATAL: MISSING!"
-);
-console.log("---------------------------------");
-
-// Configure Cloudinary with the correct environment variables for Next.js
+// Configure Cloudinary with your secret credentials from your environment variables
 cloudinary.config({
   cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
   secure: true,
-});
+})
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const formData = await req.formData();
-    const mediaFile = formData.get("mediaFile") as File | null;
-    const coverImage = formData.get("coverImage") as File | null;
+    // Check if Cloudinary is properly configured
+    if (
+      !process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
+      !process.env.CLOUDINARY_API_KEY ||
+      !process.env.CLOUDINARY_API_SECRET
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Cloudinary configuration is missing. Please add NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.",
+        },
+        { status: 500 },
+      )
+    }
+
+    const formData = await request.formData()
+    const mediaFile = formData.get("mediaFile") as File
+    const coverImage = formData.get("coverImage") as File
 
     if (!mediaFile || !coverImage) {
-      return NextResponse.json(
-        { error: "Media file or cover image is missing." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Both mediaFile and coverImage are required" }, { status: 400 })
     }
 
-    const mediaBuffer = await mediaFile.arrayBuffer();
-    const coverImageBuffer = await coverImage.arrayBuffer();
+    // Convert files to base64 for Cloudinary upload
+    const mediaBuffer = Buffer.from(await mediaFile.arrayBuffer())
+    const imageBuffer = Buffer.from(await coverImage.arrayBuffer())
 
-    const resourceType = mediaFile.type.startsWith("video") ? "video" : "raw";
+    const mediaBase64 = `data:${mediaFile.type};base64,${mediaBuffer.toString("base64")}`
+    const imageBase64 = `data:${coverImage.type};base64,${imageBuffer.toString("base64")}`
 
-    const [mediaUploadResult, imageUploadResult] = await Promise.all([
-      new Promise((resolve, reject) => {
-        cloudinary.uploader
-          .upload_stream({ resource_type: resourceType }, (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          })
-          .end(Buffer.from(mediaBuffer));
-      }),
-      new Promise((resolve, reject) => {
-        cloudinary.uploader
-          .upload_stream({ resource_type: "image" }, (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          })
-          .end(Buffer.from(coverImageBuffer));
-      }),
-    ]);
+    // Upload media file to Cloudinary
+    const mediaUploadResult = await cloudinary.uploader.upload(mediaBase64, {
+      resource_type: mediaFile.type.startsWith("video") ? "video" : "auto",
+      folder: "pulsevest/media",
+      public_id: `media_${Date.now()}`,
+    })
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const mediaUrl = mediaUploadResult?.secure_url;
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const imageUrl = imageUploadResult?.secure_url;
+    // Upload cover image to Cloudinary
+    const imageUploadResult = await cloudinary.uploader.upload(imageBase64, {
+      resource_type: "image",
+      folder: "pulsevest/covers",
+      public_id: `cover_${Date.now()}`,
+    })
 
-    if (!mediaUrl || !imageUrl) {
-      throw new Error("Cloudinary upload failed for one or more files.");
-    }
-
-    return NextResponse.json({ mediaUrl, imageUrl });
-  } catch (error: unknown) {
-    console.error("Upload API failed:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "An unknown error occurred.";
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json({
+      mediaUrl: mediaUploadResult.secure_url,
+      imageUrl: imageUploadResult.secure_url,
+      success: true,
+    })
+  } catch (error) {
+    console.error("Upload failed:", error)
+    const errorMessage = error instanceof Error ? error.message : "Upload failed"
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }

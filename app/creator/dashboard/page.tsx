@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import {
   ArrowLeft,
   BarChart2,
-  CheckCircle2,
   Clock,
   FileAudio,
   Film,
@@ -14,7 +13,6 @@ import {
   TrendingUp,
   UploadCloud,
   Users,
-  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
@@ -28,18 +26,19 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Textarea } from "@/components/ui/Textarea";
 import { StatCard } from "@/components/creator/StatCard";
-import { ProgressBar } from "@/components/ui/ProgressBar";
-import { ProjectInfo } from "@/components/creator/ProjectInfo";
 import { ProjectCard } from "@/components/investor/ProjectCard";
-import { LiveProject, Score } from "@/types"; // Assuming types are in @/types
+import { ProjectInfo } from "@/components/creator/ProjectInfo";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { LiveProject, Score } from "@/types";
 
-// The AnalysisResult is now defined locally as it's only used here
+// In a real application, this would come from an authentication hook like useAuth()
+const MOCK_USER = { uid: "creator123", name: "Jide Martins" };
+
 interface AnalysisResult {
   pulseScore: number;
   scores: Score[];
   suggestions: string;
 }
-
 type View = "dashboard" | "creation" | "loading" | "results" | "projectDetail";
 
 export default function CreatorDashboard() {
@@ -59,7 +58,6 @@ export default function CreatorDashboard() {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [coverImage, setCoverImage] = useState<File | null>(null);
 
-  // Control State
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
     null
   );
@@ -67,20 +65,23 @@ export default function CreatorDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
 
-  // --- ENGINE TO MAKE THE DASHBOARD LIVE ---
+  // --- ENGINE TO MAKE THE DASHBOARD LIVE (FETCHES FROM MONGODB) ---
   useEffect(() => {
-    if (view === "dashboard") {
-      try {
-        const storedProjects = JSON.parse(
-          localStorage.getItem("pulsevest_projects") || "[]"
-        );
-        setLiveProjects(storedProjects.reverse()); // .reverse() shows the newest projects first
-      } catch (error) {
-        console.error("Failed to load projects from localStorage", error);
-        setLiveProjects([]);
-      }
+    if (view === "dashboard" && MOCK_USER) {
+      setIsLoading(true);
+      fetch(`/api/projects?creatorId=${MOCK_USER.uid}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.projects) {
+            setLiveProjects(data.projects);
+          } else if (data.error) {
+            console.error("API Error fetching projects:", data.error);
+          }
+        })
+        .catch((err) => console.error("Failed to fetch projects:", err))
+        .finally(() => setIsLoading(false));
     }
-  }, [view]); // The dependency array ensures this runs every time `view` changes.
+  }, [view]);
 
   const handleMediaFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setMediaFile(e.target.files[0]);
@@ -89,31 +90,25 @@ export default function CreatorDashboard() {
     if (e.target.files && e.target.files[0]) setCoverImage(e.target.files[0]);
   };
 
-  // --- STEP 1: ANALYSIS ---
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mediaFile || !title || !stageName) {
       alert(
-        "Please provide a Title, Stage Name, and a Media File to run the analysis."
+        "Please provide a Title, Stage Name, and a Media File for analysis."
       );
       return;
     }
-
     setIsLoading(true);
     setLoadingMessage("Contacting analysis engine...");
     setApiError(null);
-    setAnalysisResult(null);
-
     try {
       const formData = new FormData();
-      formData.append("audioFile", mediaFile); // The backend expects this key for both audio and video
-
+      formData.append("audioFile", mediaFile);
       const backendUrl = "https://pulsevest-backend.onrender.com/analyze";
       const response = await fetch(backendUrl, {
         method: "POST",
         body: formData,
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(
@@ -132,7 +127,6 @@ export default function CreatorDashboard() {
     }
   };
 
-  // --- STEP 2: GO LIVE (PUBLISH) ---
   const handleGoLive = async () => {
     if (
       !analysisResult ||
@@ -141,38 +135,32 @@ export default function CreatorDashboard() {
       !description ||
       !fundingGoal ||
       !fundingReason ||
-      !realName
+      !realName ||
+      !MOCK_USER
     ) {
-      alert(
-        "Please ensure all form fields, including the cover image, are complete before going live."
-      );
+      alert("Please ensure all fields are complete and you are logged in.");
       return;
     }
-
     setIsLoading(true);
-    setLoadingMessage("Uploading media to Cloudinary...");
+    setLoadingMessage("Uploading media...");
     setApiError(null);
-
     try {
-      const formData = new FormData();
-      formData.append("mediaFile", mediaFile);
-      formData.append("coverImage", coverImage);
-
-      const response = await fetch("/api/upload", {
+      const uploadFormData = new FormData();
+      uploadFormData.append("mediaFile", mediaFile);
+      uploadFormData.append("coverImage", coverImage);
+      const uploadResponse = await fetch("/api/upload", {
         method: "POST",
-        body: formData,
+        body: uploadFormData,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error || `Upload failed with status ${response.status}`
-        );
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || `Upload failed`);
       }
-      const { mediaUrl, imageUrl } = await response.json();
+      const { mediaUrl, imageUrl } = await uploadResponse.json();
 
-      const newProject: LiveProject = {
-        id: Date.now(),
+      const newProject: Omit<LiveProject, "_id"> = {
+        id: `proj_${Date.now()}`,
+        creatorId: MOCK_USER.uid,
         title,
         stageName,
         realName,
@@ -190,23 +178,22 @@ export default function CreatorDashboard() {
         creator: stageName,
       };
 
-      const existingProjects = JSON.parse(
-        localStorage.getItem("pulsevest_projects") || "[]"
-      );
-      existingProjects.push(newProject);
-      localStorage.setItem(
-        "pulsevest_projects",
-        JSON.stringify(existingProjects)
-      );
+      setLoadingMessage("Publishing to database...");
+      const publishResponse = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newProject),
+      });
+      if (!publishResponse.ok) {
+        const errorData = await publishResponse.json();
+        throw new Error(
+          errorData.error || "Failed to save project to database."
+        );
+      }
 
-      alert(
-        `SUCCESS! Your project "${title}" is now LIVE! Investors can see it.`
-      );
-
-      // --- THIS IS THE REDIRECT YOU COMMANDED ---
+      alert(`SUCCESS! Your project "${title}" is now LIVE!`);
       setView("dashboard");
-
-      // Reset the form for the next project
+      // Reset form completely
       setTitle("");
       setStageName("");
       setRealName("");
@@ -225,37 +212,49 @@ export default function CreatorDashboard() {
     }
   };
 
-  const handleSelectProject = (project: LiveProject) => {
-    setSelectedProject(project);
-    setView("projectDetail");
-  };
-
-  const handleSaveProjectChanges = (updatedProject: LiveProject) => {
-    const existingProjects: LiveProject[] = JSON.parse(
-      localStorage.getItem("pulsevest_projects") || "[]"
-    );
-    const projectIndex = existingProjects.findIndex(
-      (p) => p.id === updatedProject.id
-    );
-    if (projectIndex > -1) {
-      existingProjects[projectIndex] = updatedProject;
-      localStorage.setItem(
-        "pulsevest_projects",
-        JSON.stringify(existingProjects)
-      );
+  const handleSaveProjectChanges = async (updatedProject: LiveProject) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/projects/${updatedProject.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedProject),
+      });
+      if (!response.ok) throw new Error("Failed to save changes.");
       alert("Changes saved!");
       setView("dashboard");
+    } catch (error) {
+      console.error("Save failed:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleDeleteProject = (projectId: number) => {
-    const existingProjects: LiveProject[] = JSON.parse(
-      localStorage.getItem("pulsevest_projects") || "[]"
-    );
-    const updatedProjects = existingProjects.filter((p) => p.id !== projectId);
-    localStorage.setItem("pulsevest_projects", JSON.stringify(updatedProjects));
-    alert("Project deleted.");
-    setView("dashboard");
+  const handleDeleteProject = async (projectId: string) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to permanently delete this project?"
+      )
+    )
+      return;
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete project.");
+      alert("Project deleted.");
+      setView("dashboard");
+    } catch (error) {
+      console.error("Delete failed:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectProject = (project: LiveProject) => {
+    setSelectedProject(project);
+    setView("projectDetail");
   };
 
   const totalFunding = liveProjects.reduce((sum, p) => sum + p.current, 0);
@@ -305,6 +304,7 @@ export default function CreatorDashboard() {
                     value={realName}
                     onChange={(e) => setRealName(e.target.value)}
                     placeholder="Your Real Name"
+                    required
                   />
                   <Input
                     value={stageName}
@@ -329,6 +329,7 @@ export default function CreatorDashboard() {
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="A brief description..."
+                    required
                   />
                 </CardContent>
               </Card>
@@ -342,11 +343,13 @@ export default function CreatorDashboard() {
                     value={fundingGoal}
                     onChange={(e) => setFundingGoal(e.target.value)}
                     placeholder="Funding Goal (₦)"
+                    required
                   />
                   <Textarea
                     value={fundingReason}
                     onChange={(e) => setFundingReason(e.target.value)}
                     placeholder="Why you need this funding..."
+                    required
                   />
                 </CardContent>
               </Card>
@@ -578,7 +581,11 @@ export default function CreatorDashboard() {
               <h3 className="font-satoshi text-2xl font-bold">
                 Your Live Projects
               </h3>
-              {liveProjects.length > 0 ? (
+              {isLoading ? (
+                <div className="text-center py-10">
+                  <Loader2 className="w-8 h-8 mx-auto animate-spin" />
+                </div>
+              ) : liveProjects.length > 0 ? (
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {liveProjects.map((p) => (
                     <div
@@ -594,7 +601,9 @@ export default function CreatorDashboard() {
                   ))}
                 </div>
               ) : (
-                <p className="text-muted">You have no live projects yet.</p>
+                <p className="mt-4 text-muted">
+                  You have no live projects yet.
+                </p>
               )}
             </div>
             <button
