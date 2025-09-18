@@ -1,4 +1,3 @@
-// pulsevest/app/creator/dashboard/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -15,7 +14,7 @@ import {
   UploadCloud,
   Users,
 } from "lucide-react";
-import { useAuth } from "@/components/AuthProvider"; // Import the auth hook
+import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -41,14 +40,13 @@ interface AnalysisResult {
 type View = "dashboard" | "creation" | "loading" | "results" | "projectDetail";
 
 export default function CreatorDashboard() {
-  const { user, isLoading: isAuthLoading } = useAuth(); // Use the real user from auth
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [view, setView] = useState<View>("dashboard");
   const [liveProjects, setLiveProjects] = useState<LiveProject[]>([]);
   const [selectedProject, setSelectedProject] = useState<LiveProject | null>(
     null
   );
 
-  // Form State
   const [title, setTitle] = useState("");
   const [stageName, setStageName] = useState("");
   const [realName, setRealName] = useState("");
@@ -66,10 +64,9 @@ export default function CreatorDashboard() {
   const [loadingMessage, setLoadingMessage] = useState("");
 
   useEffect(() => {
-    // Only fetch projects if we are on the dashboard, not loading auth, and have a user
     if (view === "dashboard" && !isAuthLoading && user) {
       setIsLoading(true);
-      fetch(`/api/projects?creatorId=${user.uid}`) // Use the REAL user ID
+      fetch(`/api/projects?creatorId=${user.uid}`)
         .then((res) => res.json())
         .then((data) => {
           if (data.projects) {
@@ -83,7 +80,6 @@ export default function CreatorDashboard() {
     }
   }, [view, user, isAuthLoading]);
 
-  // (Keep all your handler functions: handleMediaFileChange, handleAnalyze, handleGoLive, etc. The only change is using user.uid instead of MOCK_USER.uid)
   const handleMediaFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setMediaFile(e.target.files[0]);
   };
@@ -137,7 +133,7 @@ export default function CreatorDashboard() {
       !fundingGoal ||
       !fundingReason ||
       !realName ||
-      !user // Check for real user
+      !user
     ) {
       alert("Please ensure all fields are complete and you are logged in.");
       return;
@@ -161,7 +157,7 @@ export default function CreatorDashboard() {
 
       const newProject: Omit<LiveProject, "_id"> = {
         id: `proj_${Date.now()}`,
-        creatorId: user.uid, // Use REAL user ID
+        creatorId: user.uid,
         title,
         stageName,
         realName,
@@ -185,6 +181,7 @@ export default function CreatorDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newProject),
       });
+
       if (!publishResponse.ok) {
         const errorData = await publishResponse.json();
         throw new Error(
@@ -194,7 +191,6 @@ export default function CreatorDashboard() {
 
       alert(`SUCCESS! Your project "${title}" is now LIVE!`);
       setView("dashboard");
-      // Reset form completely
       setTitle("");
       setStageName("");
       setRealName("");
@@ -267,7 +263,6 @@ export default function CreatorDashboard() {
         ).toFixed(0)
       : "--";
 
-  // Show loading spinner while checking auth state
   if (isAuthLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
