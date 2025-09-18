@@ -1,6 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
 import { type NextRequest, NextResponse } from "next/server";
-import { Writable } from "stream";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -10,7 +9,7 @@ cloudinary.config({
   secure: true,
 });
 
-// Helper function to upload a stream to Cloudinary
+// Helper function to upload a buffer to Cloudinary
 const uploadStream = (fileBuffer: Buffer, options: any): Promise<any> => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -44,10 +43,12 @@ export async function POST(request: NextRequest) {
     const mediaBuffer = Buffer.from(await mediaFile.arrayBuffer());
     const imageBuffer = Buffer.from(await coverImage.arrayBuffer());
 
-    // Upload both files in parallel
+    // --- THIS IS THE FIX ---
+    // We now use "auto" for the resource_type to let Cloudinary correctly
+    // identify whether the media file is an image, video, or audio file.
     const [mediaUploadResult, imageUploadResult] = await Promise.all([
       uploadStream(mediaBuffer, {
-        resource_type: mediaFile.type.startsWith("video") ? "video" : "image", // Videos are also 'auto' but this is more explicit
+        resource_type: "auto",
         folder: "pulsevest/media",
       }),
       uploadStream(imageBuffer, {
