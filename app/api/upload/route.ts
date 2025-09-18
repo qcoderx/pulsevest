@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import { type NextRequest, NextResponse } from "next/server";
+import { Writable } from "stream";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -9,35 +10,28 @@ cloudinary.config({
   secure: true,
 });
 
-// --- THIS IS THE FIX ---
-// We are increasing the maximum file size the server will accept for this route.
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: "100mb", // Set a 100MB limit, adjust if needed
-    },
-  },
+// Helper function to upload a stream to Cloudinary
+const uploadStream = (fileBuffer: Buffer, options: any): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      options,
+      (error, result) => {
+        if (result) {
+          resolve(result);
+        } else {
+          reject(error);
+        }
+      }
+    );
+    stream.end(fileBuffer);
+  });
 };
 
 export async function POST(request: NextRequest) {
   try {
-    if (
-      !process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
-      !process.env.CLOUDINARY_API_KEY ||
-      !process.env.CLOUDINARY_API_SECRET
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Cloudinary configuration is missing. Please check your environment variables.",
-        },
-        { status: 500 }
-      );
-    }
-
     const formData = await request.formData();
-    const mediaFile = formData.get("mediaFile") as File;
-    const coverImage = formData.get("coverImage") as File;
+    const mediaFile = formData.get("mediaFile") as File | null;
+    const coverImage = formData.get("coverImage") as File | null;
 
     if (!mediaFile || !coverImage) {
       return NextResponse.json(
@@ -46,27 +40,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Convert files to buffers
     const mediaBuffer = Buffer.from(await mediaFile.arrayBuffer());
     const imageBuffer = Buffer.from(await coverImage.arrayBuffer());
 
-    const mediaBase64 = `data:${mediaFile.type};base64,${mediaBuffer.toString(
-      "base64"
-    )}`;
-    const imageBase64 = `data:${coverImage.type};base64,${imageBuffer.toString(
-      "base64"
-    )}`;
-
-    const mediaUploadResult = await cloudinary.uploader.upload(mediaBase64, {
-      resource_type: mediaFile.type.startsWith("video") ? "video" : "auto",
-      folder: "pulsevest/media",
-      public_id: `media_${Date.now()}`,
-    });
-
-    const imageUploadResult = await cloudinary.uploader.upload(imageBase64, {
-      resource_type: "image",
-      folder: "pulsevest/covers",
-      public_id: `cover_${Date.now()}`,
-    });
+    // Upload both files in parallel
+    const [mediaUploadResult, imageUploadResult] = await Promise.all([
+      uploadStream(mediaBuffer, {
+        resource_type: mediaFile.type.startsWith("video") ? "video" : "image", // Videos are also 'auto' but this is more explicit
+        folder: "pulsevest/media",
+      }),
+      uploadStream(imageBuffer, {
+        resource_type: "image",
+        folder: "pulsevest/covers",
+      }),
+    ]);
 
     return NextResponse.json({
       mediaUrl: mediaUploadResult.secure_url,
@@ -76,8 +64,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Upload failed:", error);
     const errorMessage =
-      error instanceof Error ? error.message : "Upload failed";
-    // Send a proper JSON error response
+      error instanceof Error
+        ? error.message
+        : "An unknown error occurred during upload.";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
