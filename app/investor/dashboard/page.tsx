@@ -1,12 +1,12 @@
 // pulsevest/app/investor/dashboard/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/components/AuthProvider";
-import { Loader2, LogOut } from "lucide-react";
+import { Loader2, LogOut, RefreshCw } from "lucide-react";
 import { ProjectCard } from "@/components/investor/ProjectCard";
 import { InvestmentModal } from "@/components/investor/InvestmentModal";
 import { InvestorProjectView } from "@/components/investor/InvestorProjectView";
@@ -23,25 +23,27 @@ export default function InvestorDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchProjects() {
-      setIsLoading(true);
-      try {
-        const response = await fetch("/api/projects/all");
-        if (!response.ok) {
-          throw new Error("Failed to fetch projects");
-        }
-        const data = await response.json();
-        if (data.projects) {
-          setProjects(data.projects);
-        }
-      } catch (error) {
-        console.error("Failed to fetch projects from API:", error);
+  const fetchProjects = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/projects/all");
+      if (!response.ok) {
+        throw new Error("Failed to fetch projects");
       }
+      const data = await response.json();
+      if (data.projects) {
+        setProjects(data.projects);
+      }
+    } catch (error) {
+      console.error("Failed to fetch projects from API:", error);
+    } finally {
       setIsLoading(false);
     }
-    fetchProjects();
   }, []);
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   const handleLogout = async () => {
     try {
@@ -103,6 +105,19 @@ export default function InvestorDashboard() {
           </Button>
         </div>
       </header>
+      <div className="flex justify-end border-b border-border mb-8 pb-4">
+        <Button
+          onClick={fetchProjects}
+          variant="outline"
+          size="sm"
+          disabled={isLoading}
+        >
+          <RefreshCw
+            className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+          />
+          Refresh
+        </Button>
+      </div>
       {isLoading ? (
         <div className="text-center py-20">
           <Loader2 className="w-12 h-12 mx-auto animate-spin text-primary" />

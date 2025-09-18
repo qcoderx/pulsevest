@@ -1,12 +1,12 @@
 // pulsevest/app/fan/dashboard/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/components/AuthProvider";
-import { Loader2, LogOut } from "lucide-react";
+import { Loader2, LogOut, RefreshCw } from "lucide-react"; // Import RefreshCw icon
 import { ProjectCard } from "@/components/investor/ProjectCard";
 import { FanProjectView } from "@/components/fan/FanProjectView";
 import { PlaylistView } from "@/components/fan/PlaylistView";
@@ -26,17 +26,26 @@ export default function FanDashboard() {
   const [profile, setProfile] = useState<FanProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // --- THIS IS THE FIX ---
+  // We've wrapped the fetching logic in a useCallback hook
+  // so we can call it manually with the refresh button.
+  const fetchProjects = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const projectsResponse = await fetch("/api/projects/all");
+      if (!projectsResponse.ok) throw new Error("Failed to fetch projects");
+      const projectsData = await projectsResponse.json();
+      if (projectsData.projects) setProjects(projectsData.projects);
+    } catch (err) {
+      console.error("Failed to fetch projects from API:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     async function fetchData() {
-      setIsLoading(true);
-      try {
-        const projectsResponse = await fetch("/api/projects/all");
-        if (!projectsResponse.ok) throw new Error("Failed to fetch projects");
-        const projectsData = await projectsResponse.json();
-        if (projectsData.projects) setProjects(projectsData.projects);
-      } catch (err) {
-        console.error("Failed to fetch projects from API:", err);
-      }
+      await fetchProjects(); // Call the main fetch function
 
       if (user) {
         try {
@@ -66,15 +75,14 @@ export default function FanDashboard() {
           console.error("Failed to parse profile from localStorage", error);
         }
       }
-      setIsLoading(false);
     }
     fetchData();
-  }, [view, user]);
+  }, [user, fetchProjects]);
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.push("/"); // Redirect to home page after logout
+      router.push("/");
     } catch (error) {
       console.error("Failed to log out:", error);
     }
@@ -157,24 +165,38 @@ export default function FanDashboard() {
         </div>
       </header>
 
-      <div className="flex space-x-2 border-b border-border mb-8">
+      <div className="flex justify-between items-center border-b border-border mb-8">
+        <div className="flex space-x-2">
+          <Button
+            variant={view === "all" ? "default" : "ghost"}
+            onClick={() => setView("all")}
+          >
+            All Projects
+          </Button>
+          <Button
+            variant={view === "favorites" ? "default" : "ghost"}
+            onClick={() => setView("favorites")}
+          >
+            Favorites
+          </Button>
+          <Button
+            variant={view === "playlist" ? "default" : "ghost"}
+            onClick={() => setView("playlist")}
+          >
+            Playlist
+          </Button>
+        </div>
+        {/* --- REFRESH BUTTON ADDED HERE --- */}
         <Button
-          variant={view === "all" ? "default" : "ghost"}
-          onClick={() => setView("all")}
+          onClick={fetchProjects}
+          variant="outline"
+          size="sm"
+          disabled={isLoading}
         >
-          All Projects
-        </Button>
-        <Button
-          variant={view === "favorites" ? "default" : "ghost"}
-          onClick={() => setView("favorites")}
-        >
-          Favorites
-        </Button>
-        <Button
-          variant={view === "playlist" ? "default" : "ghost"}
-          onClick={() => setView("playlist")}
-        >
-          Playlist
+          <RefreshCw
+            className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
+          />
+          Refresh
         </Button>
       </div>
 
