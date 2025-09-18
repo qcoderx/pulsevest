@@ -1,10 +1,9 @@
-// pulsevest/app/auth/signup/[role]/page.tsx
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/Button";
 import {
@@ -47,16 +46,17 @@ export default function SignupPage({
     setError(null);
 
     try {
-      // Step 1: Create the user in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
         password
       );
       const user = userCredential.user;
-      console.log("Firebase user created:", user);
 
-      // Step 2: Create the user profile in our MongoDB database
+      // --- THIS IS THE FIX ---
+      // Save the user's name to their Firebase profile
+      await updateProfile(user, { displayName: name });
+
       const profileResponse = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,7 +72,6 @@ export default function SignupPage({
         throw new Error("Failed to create user profile in database.");
       }
 
-      // Step 3: Redirect to the correct dashboard
       const destination = `/${role}/dashboard`;
       router.push(destination);
     } catch (err: any) {
