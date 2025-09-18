@@ -1,3 +1,4 @@
+// pulsevest/components/investor/PulseScoreOrbital.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -15,10 +16,6 @@ interface PulseScoreOrbitalProps {
   project: Project;
 }
 
-/**
- * A dynamic, multimodal, and FULLY RESPONSIVE orbiting visualization of the Pulse Score.
- * Re-engineered with a mobile-first design, tap interactions, and a clear, readable layout on all screen sizes.
- */
 export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
   const [rotation, setRotation] = useState(0);
   const [activeNode, setActiveNode] = useState<Score | null>(null);
@@ -40,14 +37,16 @@ export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
       explanation: "Analysis for this category was not available.",
     };
     if (!project.scores || !Array.isArray(project.scores)) return defaultScore;
-    const searchTerm = category.toLowerCase();
+    const searchTerm = category.toLowerCase().replace(/\s/g, "");
     const scoreObj = project.scores.find((s) =>
-      s.category.toLowerCase().includes(searchTerm)
+      s.category.toLowerCase().replace(/\s/g, "").includes(searchTerm)
     );
     return scoreObj || defaultScore;
   };
 
   const isVideo = project.mediaType === "video";
+
+  // --- THIS IS THE UPDATED LOGIC ---
   const nodes = isVideo
     ? [
         { data: findScoreObject("storyline"), label: "Story", angle: -90 },
@@ -62,22 +61,18 @@ export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
     : [
         { data: findScoreObject("rhythm"), label: "Rhythm", angle: -90 },
         { data: findScoreObject("sound"), label: "Sound", angle: 0 },
-        { data: findScoreObject("market"), label: "Market", angle: 90 },
-        { data: findScoreObject("genre"), label: "Genre", angle: 180 },
+        { data: findScoreObject("lyricalcontent"), label: "Lyrics", angle: 90 }, // Changed from "Genre"
+        { data: findScoreObject("market"), label: "Market", angle: 180 },
       ];
 
-  // --- RESPONSIVE SIZING ---
-  const radius = 120; // Slightly smaller radius for a tighter mobile feel
-  const planetSize = "w-24 h-24"; // Smaller planets for mobile
+  const radius = 120;
+  const planetSize = "w-24 h-24";
   const sunSize = "w-32 h-32";
   const orbitalSize = "w-72 h-72";
 
   return (
-    // The main container is now a column on mobile and a row on desktop
     <div className="flex flex-col lg:flex-row items-center justify-center lg:space-x-8 w-full">
-      {/* Main Orbital System */}
       <div className={cn("relative flex-shrink-0", orbitalSize)}>
-        {/* The Sun: Central Pulse Score */}
         <div
           className={cn(
             "absolute inset-0 m-auto z-10 rounded-full flex flex-col items-center justify-center border-2 border-white/20 shadow-2xl shadow-secondary/30 bg-secondary",
@@ -89,8 +84,6 @@ export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
           </span>
           <span className="text-xs text-white/70 tracking-widest">OVERALL</span>
         </div>
-
-        {/* The Revolving Planets Container */}
         <div className="w-full h-full">
           {nodes.map((node, index) => {
             const currentAngle = node.angle + rotation;
@@ -107,7 +100,7 @@ export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
                 }}
                 onMouseEnter={() => setActiveNode(node.data)}
                 onMouseLeave={() => setActiveNode(null)}
-                onClick={() => setActiveNode(node.data)} // TAP interaction for mobile
+                onClick={() => setActiveNode(node.data)}
               >
                 <div
                   className={cn(
@@ -126,8 +119,6 @@ export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
           })}
         </div>
       </div>
-
-      {/* The Explanation Box: Now appears below on mobile */}
       <div className="w-full lg:w-64 mt-8 lg:mt-0 h-40">
         <Card
           className={cn(
