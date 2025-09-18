@@ -46,7 +46,6 @@ export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
 
   const isVideo = project.mediaType === "video";
 
-  // --- THIS IS THE UPDATED LOGIC ---
   const nodes = isVideo
     ? [
         { data: findScoreObject("storyline"), label: "Story", angle: -90 },
@@ -61,7 +60,7 @@ export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
     : [
         { data: findScoreObject("rhythm"), label: "Rhythm", angle: -90 },
         { data: findScoreObject("sound"), label: "Sound", angle: 0 },
-        { data: findScoreObject("lyricalcontent"), label: "Lyrics", angle: 90 }, // Changed from "Genre"
+        { data: findScoreObject("lyricalcontent"), label: "Lyrics", angle: 90 },
         { data: findScoreObject("market"), label: "Market", angle: 180 },
       ];
 
@@ -119,14 +118,16 @@ export function PulseScoreOrbital({ project }: PulseScoreOrbitalProps) {
           })}
         </div>
       </div>
-      <div className="w-full lg:w-64 mt-8 lg:mt-0 h-40">
+      {/* --- THIS IS THE FIX --- */}
+      {/* Increased width and height for more space */}
+      <div className="w-full lg:w-80 mt-8 lg:mt-0 h-48 lg:h-40">
         <Card
           className={cn(
             "h-full transition-all duration-300 flex flex-col justify-center text-center",
             activeNode ? "opacity-100 scale-100" : "opacity-50 scale-95"
           )}
         >
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             {activeNode ? (
               <div className="animate-fade-in">
                 <h4 className="font-satoshi font-bold text-lg text-primary">
