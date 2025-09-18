@@ -1,19 +1,11 @@
 // pulsevest/components/fan/FanProjectView.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  ArrowLeft,
-  Heart,
-  ListMusic,
-  Send,
-  Sparkles,
-  Star,
-} from "lucide-react";
-import { useAuth } from "@/components/AuthProvider"; // Import the auth hook
+import { useState, useEffect, useCallback } from "react";
+import { ArrowLeft, Heart, ListMusic, Send, Star } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 import { LiveProject, Review } from "@/types";
 import { MediaViewer } from "@/components/investor/MediaViewer";
-import { PulseScoreOrbital } from "@/components/investor/PulseScoreOrbital";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Textarea } from "../ui/Textarea";
@@ -36,50 +28,69 @@ export function FanProjectView({
   isInPlaylist,
   onTogglePlaylist,
 }: FanProjectViewProps) {
-  const { user } = useAuth(); // Get the authenticated user
+  const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [newComment, setNewComment] = useState("");
   const [newRating, setNewRating] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const reviewStorageKey = `pulsevest_reviews_${project.id}`;
-
-  useEffect(() => {
+  const fetchReviews = useCallback(async () => {
     try {
-      const storedReviews = localStorage.getItem(reviewStorageKey);
-      if (storedReviews) setReviews(JSON.parse(storedReviews));
+      const response = await fetch(`/api/reviews/${project.id}`);
+      const data = await response.json();
+      if (data.reviews) {
+        setReviews(data.reviews);
+      }
     } catch (error) {
       console.error("Failed to load reviews:", error);
     }
-  }, [project.id, reviewStorageKey]);
+  }, [project.id]);
 
-  const handleAddReview = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
+
+  const handleAddReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment || newRating === 0) {
-      alert("Please leave a rating and a comment.");
-      return;
-    }
-    // --- THIS IS THE FIX ---
-    // We now include the fanId from the logged-in user.
-    if (!user) {
-      alert("You must be logged in to leave a review.");
-      return;
-    }
+    if (!user) return alert("You must be logged in to leave a review.");
+    if (!newComment || newRating === 0)
+      return alert("Please provide a rating and a comment.");
 
-    const newReview: Review = {
-      id: new Date().toISOString(),
-      projectId: project.id,
-      fanId: user.uid, // Add the user's ID
-      fanName: user.displayName || "Anonymous Fan", // Use user's display name
-      rating: newRating,
-      comment: newComment,
-      createdAt: new Date().toISOString(),
-    };
-    const updatedReviews = [...reviews, newReview];
-    setReviews(updatedReviews);
-    localStorage.setItem(reviewStorageKey, JSON.stringify(updatedReviews));
-    setNewComment("");
-    setNewRating(0);
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: project.id,
+          fanId: user.uid,
+          fanName: user.displayName || "Anonymous Fan",
+          rating: newRating,
+          comment: newComment,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to submit review.");
+      }
+
+      setNewComment("");
+      setNewRating(0);
+      await fetchReviews(); // Refresh reviews list after submission
+    } catch (error) {
+      console.error("Review submission error:", error);
+      alert(
+        error instanceof Error ? error.message : "An unknown error occurred."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const hasUserReviewed = user
+    ? reviews.some((review) => review.fanId === user.uid)
+    : false;
 
   return (
     <div className="animate-fade-in">
@@ -91,7 +102,6 @@ export function FanProjectView({
         <span>Back to Discovery</span>
       </button>
       <div className="lg:grid lg:grid-cols-5 lg:gap-12">
-        {/* LEFT COLUMN */}
         <div className="lg:col-span-2">
           <MediaViewer project={project} />
           <div className="mt-6 grid grid-cols-2 gap-2">
@@ -117,7 +127,6 @@ export function FanProjectView({
             </Button>
           </div>
         </div>
-        {/* RIGHT COLUMN */}
         <div className="lg:col-span-3 mt-8 lg:mt-0 space-y-8">
           <div>
             <h2 className="font-satoshi text-5xl font-extrabold">
@@ -130,16 +139,6 @@ export function FanProjectView({
               </span>
             </p>
           </div>
-
-          <Card>
-            <CardHeader className="items-center">
-              <CardTitle>Pulse Score Analysis</CardTitle>
-            </CardHeader>
-            <CardContent className="flex justify-center overflow-hidden">
-              <PulseScoreOrbital project={project} />
-            </CardContent>
-          </Card>
-
           <Card>
             <CardHeader>
               <CardTitle>Reviews & Ratings</CardTitle>
@@ -148,7 +147,10 @@ export function FanProjectView({
               <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
                 {reviews.length > 0 ? (
                   reviews.map((r) => (
-                    <div key={r.id} className="bg-background p-3 rounded-lg">
+                    <div
+                      key={r._id?.toString() || r.id}
+                      className="bg-background p-3 rounded-lg"
+                    >
                       <div className="flex justify-between items-center">
                         <span className="font-bold text-sm">{r.fanName}</span>
                         <div className="flex items-center space-x-1">
@@ -177,34 +179,49 @@ export function FanProjectView({
                 onSubmit={handleAddReview}
                 className="mt-6 border-t border-border pt-4"
               >
-                <div className="flex items-center justify-center space-x-2 mb-4">
-                  <span className="text-sm font-bold">Your Rating:</span>
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-6 h-6 cursor-pointer ${
-                        i < newRating
-                          ? "fill-primary text-primary"
-                          : "text-muted hover:text-primary"
-                      }`}
-                      onClick={() => setNewRating(i + 1)}
-                    />
-                  ))}
-                </div>
-                <div className="relative">
-                  <Textarea
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Share your thoughts..."
-                  />
-                  <Button
-                    type="submit"
-                    size="sm"
-                    className="absolute bottom-2 right-2"
-                  >
-                    Post <Send className="w-4 h-4 ml-2" />
-                  </Button>
-                </div>
+                {hasUserReviewed ? (
+                  <p className="text-center text-sm text-primary font-semibold">
+                    Thanks for your review!
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-center space-x-2 mb-4">
+                      <span className="text-sm font-bold">Your Rating:</span>
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-6 h-6 cursor-pointer ${
+                            i < newRating
+                              ? "fill-primary text-primary"
+                              : "text-muted hover:text-primary"
+                          }`}
+                          onClick={() => setNewRating(i + 1)}
+                        />
+                      ))}
+                    </div>
+                    <div className="relative">
+                      <Textarea
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Share your thoughts..."
+                      />
+                      <Button
+                        type="submit"
+                        size="sm"
+                        className="absolute bottom-2 right-2"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          "Posting..."
+                        ) : (
+                          <>
+                            Post <Send className="w-4 h-4 ml-2" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </>
+                )}
               </form>
             </CardContent>
           </Card>
