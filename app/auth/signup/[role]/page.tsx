@@ -1,3 +1,4 @@
+// pulsevest/app/auth/signup/[role]/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
+import { Textarea } from "@/components/ui/Textarea"; // Import Textarea
 
 export default function SignupPage({
   params,
@@ -24,17 +26,21 @@ export default function SignupPage({
   const router = useRouter();
   const { role } = params;
 
+  // Common fields
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  // Role-specific fields
+  const [discipline, setDiscipline] = useState(""); // For creators
+  const [contactInfo, setContactInfo] = useState(""); // For investors
+  const [investmentInterests, setInvestmentInterests] = useState(""); // For investors
+
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const isCreator = role === "creator";
   const title = `${role.charAt(0).toUpperCase() + role.slice(1)} Signup`;
-  const description = isCreator
-    ? "Create your account to start funding your vision."
-    : "Join to discover and invest in amazing projects.";
+  const description = `Create your account to join the PulseVest ecosystem.`;
 
   const handleSignup = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -53,19 +59,25 @@ export default function SignupPage({
       );
       const user = userCredential.user;
 
-      // --- THIS IS THE FIX ---
-      // Save the user's name to their Firebase profile
       await updateProfile(user, { displayName: name });
+
+      // Prepare user profile data for your database
+      const userProfileData: any = {
+        uid: user.uid,
+        name: name,
+        email: user.email,
+        role: role,
+      };
+
+      if (role === "investor") {
+        userProfileData.contactInfo = contactInfo;
+        userProfileData.investmentInterests = investmentInterests;
+      }
 
       const profileResponse = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uid: user.uid,
-          name: name,
-          email: user.email,
-          role: role,
-        }),
+        body: JSON.stringify(userProfileData),
       });
 
       if (!profileResponse.ok) {
@@ -128,15 +140,46 @@ export default function SignupPage({
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            {isCreator && (
+
+            {role === "creator" && (
               <div className="space-y-2">
                 <Label htmlFor="discipline">Creative Discipline</Label>
                 <Input
                   id="discipline"
                   placeholder="Filmmaker, Musician, etc."
+                  value={discipline}
+                  onChange={(e) => setDiscipline(e.target.value)}
                 />
               </div>
             )}
+
+            {role === "investor" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="contactInfo">Contact Info</Label>
+                  <Input
+                    id="contactInfo"
+                    placeholder="e.g., your@linkedin.com or phone number"
+                    required
+                    value={contactInfo}
+                    onChange={(e) => setContactInfo(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="investmentInterests">
+                    Investment Interests
+                  </Label>
+                  <Textarea
+                    id="investmentInterests"
+                    placeholder="e.g., Afrobeats, Alternative Rock, Short Films..."
+                    required
+                    value={investmentInterests}
+                    onChange={(e) => setInvestmentInterests(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
             {error && (
               <p className="text-sm text-red-500 text-center">{error}</p>
             )}

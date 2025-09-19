@@ -1,4 +1,3 @@
-// pulsevest/app/fan/dashboard/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -6,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/components/AuthProvider";
-import { Loader2, LogOut, RefreshCw } from "lucide-react"; // Import RefreshCw icon
+import { Loader2, LogOut, RefreshCw } from "lucide-react";
 import { ProjectCard } from "@/components/investor/ProjectCard";
 import { FanProjectView } from "@/components/fan/FanProjectView";
 import { PlaylistView } from "@/components/fan/PlaylistView";
@@ -26,9 +25,6 @@ export default function FanDashboard() {
   const [profile, setProfile] = useState<FanProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- THIS IS THE FIX ---
-  // We've wrapped the fetching logic in a useCallback hook
-  // so we can call it manually with the refresh button.
   const fetchProjects = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -45,7 +41,7 @@ export default function FanDashboard() {
 
   useEffect(() => {
     async function fetchData() {
-      await fetchProjects(); // Call the main fetch function
+      await fetchProjects();
 
       if (user) {
         try {
@@ -99,7 +95,7 @@ export default function FanDashboard() {
     setView("all");
   };
 
-  const updateProfile = (updatedProfile: FanProfile) => {
+  const handleUpdateProfile = (updatedProfile: FanProfile) => {
     if (!user) return;
     setProfile(updatedProfile);
     localStorage.setItem(
@@ -108,32 +104,14 @@ export default function FanDashboard() {
     );
   };
 
-  const handleToggleFavorite = (projectId: string) => {
-    if (!profile) return;
-    const newFavorites = profile.favorites.includes(projectId)
-      ? profile.favorites.filter((id) => id !== projectId)
-      : [...profile.favorites, projectId];
-    updateProfile({ ...profile, favorites: newFavorites });
-  };
-
-  const handleTogglePlaylist = (projectId: string) => {
-    if (!profile) return;
-    const newPlaylist = profile.playlist.includes(projectId)
-      ? profile.playlist.filter((id) => id !== projectId)
-      : [...profile.playlist, projectId];
-    updateProfile({ ...profile, playlist: newPlaylist });
-  };
-
   if (view === "detail" && selectedProject && profile) {
     return (
       <div className="container mx-auto px-4 py-8">
         <FanProjectView
           project={selectedProject}
+          profile={profile}
           onBack={handleBackToDiscovery}
-          isFavorite={profile.favorites.includes(selectedProject.id)}
-          onToggleFavorite={() => handleToggleFavorite(selectedProject.id)}
-          isInPlaylist={profile.playlist.includes(selectedProject.id)}
-          onTogglePlaylist={() => handleTogglePlaylist(selectedProject.id)}
+          onUpdateProfile={handleUpdateProfile}
         />
       </div>
     );
@@ -155,7 +133,7 @@ export default function FanDashboard() {
         <div className="flex items-center gap-4">
           <div className="text-right">
             <p className="font-satoshi text-2xl font-bold text-primary">
-              {profile?.pulsePoints.toLocaleString() || 0}
+              {profile?.pulsePoints ? Math.round(profile.pulsePoints) : 0}
             </p>
             <p className="text-xs text-muted">PulsePoints</p>
           </div>
@@ -186,7 +164,6 @@ export default function FanDashboard() {
             Playlist
           </Button>
         </div>
-        {/* --- REFRESH BUTTON ADDED HERE --- */}
         <Button
           onClick={fetchProjects}
           variant="outline"

@@ -1,38 +1,90 @@
-// pulsevest/components/fan/FanProjectView.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Heart, ListMusic, Send, Star } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { LiveProject, Review } from "@/types";
+import { LiveProject, Review, FanProfile } from "@/types";
 import { MediaViewer } from "@/components/investor/MediaViewer";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Textarea } from "../ui/Textarea";
 import { cn } from "@/lib/utils";
+import { PulseScoreOrbital } from "../investor/PulseScoreOrbital";
 
 interface FanProjectViewProps {
   project: LiveProject;
+  profile: FanProfile;
   onBack: () => void;
-  isFavorite: boolean;
-  onToggleFavorite: () => void;
-  isInPlaylist: boolean;
-  onTogglePlaylist: () => void;
+  onUpdateProfile: (updatedProfile: FanProfile) => void;
 }
 
 export function FanProjectView({
   project,
+  profile,
   onBack,
-  isFavorite,
-  onToggleFavorite,
-  isInPlaylist,
-  onTogglePlaylist,
+  onUpdateProfile,
 }: FanProjectViewProps) {
   const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [newComment, setNewComment] = useState("");
   const [newRating, setNewRating] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const isFavorite = profile.favorites.includes(project.id);
+  const isInPlaylist = profile.playlist.includes(project.id);
+
+  const awardPulsePoints = useCallback(
+    async (actionType: "favorite" | "playlist" | "review") => {
+      if (!user) return;
+      try {
+        const response = await fetch("/api/pulse-points", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fanId: user.uid,
+            projectId: project.id,
+            actionType,
+          }),
+        });
+        const data = await response.json();
+        if (data.pointsAwarded > 0) {
+          onUpdateProfile({
+            ...profile,
+            pulsePoints: profile.pulsePoints + data.pointsAwarded,
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to award points for ${actionType}:`, error);
+      }
+    },
+    [user, project.id, profile, onUpdateProfile]
+  );
+
+  const handleToggleFavorite = () => {
+    if (!user) return;
+    const newFavorites = isFavorite
+      ? profile.favorites.filter((id) => id !== project.id)
+      : [...profile.favorites, project.id];
+
+    onUpdateProfile({ ...profile, favorites: newFavorites });
+
+    if (!isFavorite) {
+      awardPulsePoints("favorite");
+    }
+  };
+
+  const handleTogglePlaylist = () => {
+    if (!user) return;
+    const newPlaylist = isInPlaylist
+      ? profile.playlist.filter((id) => id !== project.id)
+      : [...profile.playlist, project.id];
+
+    onUpdateProfile({ ...profile, playlist: newPlaylist });
+
+    if (!isInPlaylist) {
+      awardPulsePoints("playlist");
+    }
+  };
 
   const fetchReviews = useCallback(async () => {
     try {
@@ -75,9 +127,11 @@ export function FanProjectView({
         throw new Error(errorData.error || "Failed to submit review.");
       }
 
+      await awardPulsePoints("review");
+
       setNewComment("");
       setNewRating(0);
-      await fetchReviews(); // Refresh reviews list after submission
+      await fetchReviews();
     } catch (error) {
       console.error("Review submission error:", error);
       alert(
@@ -105,7 +159,11 @@ export function FanProjectView({
         <div className="lg:col-span-2">
           <MediaViewer project={project} />
           <div className="mt-6 grid grid-cols-2 gap-2">
-            <Button onClick={onToggleFavorite} size="lg" className="!text-base">
+            <Button
+              onClick={handleToggleFavorite}
+              size="lg"
+              className="!text-base"
+            >
               <Heart
                 className={cn(
                   "w-5 h-5 mr-2",
@@ -115,7 +173,7 @@ export function FanProjectView({
               {isFavorite ? "Saved" : "Save"}
             </Button>
             <Button
-              onClick={onTogglePlaylist}
+              onClick={handleTogglePlaylist}
               size="lg"
               variant="outline"
               className="!text-base"
@@ -139,6 +197,7 @@ export function FanProjectView({
               </span>
             </p>
           </div>
+          <PulseScoreOrbital project={project} />
           <Card>
             <CardHeader>
               <CardTitle>Reviews & Ratings</CardTitle>

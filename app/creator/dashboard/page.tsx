@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import {
   ArrowLeft,
   BarChart2,
+  Briefcase,
   Clock,
   FileAudio,
   Film,
@@ -13,6 +14,7 @@ import {
   TrendingUp,
   UploadCloud,
   Users,
+  LayoutDashboard,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/ui/Button";
@@ -31,13 +33,20 @@ import { ProjectCard } from "@/components/investor/ProjectCard";
 import { ProjectInfo } from "@/components/creator/ProjectInfo";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { LiveProject, Score } from "@/types";
+import { InvestorDirectory } from "@/components/creator/InvestorDirectory";
 
 interface AnalysisResult {
   pulseScore: number;
   scores: Score[];
   suggestions: string;
 }
-type View = "dashboard" | "creation" | "loading" | "results" | "projectDetail";
+type View =
+  | "dashboard"
+  | "creation"
+  | "loading"
+  | "results"
+  | "projectDetail"
+  | "investorDirectory";
 
 export default function CreatorDashboard() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -95,7 +104,7 @@ export default function CreatorDashboard() {
       );
       return;
     }
-    setIsLoading(true);
+    setView("loading");
     setLoadingMessage("Contacting analysis engine...");
     setApiError(null);
     try {
@@ -119,8 +128,7 @@ export default function CreatorDashboard() {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred.";
       setApiError(`Analysis failed: ${errorMessage}`);
-    } finally {
-      setIsLoading(false);
+      setView("creation");
     }
   };
 
@@ -138,7 +146,7 @@ export default function CreatorDashboard() {
       alert("Please ensure all fields are complete and you are logged in.");
       return;
     }
-    setIsLoading(true);
+    setView("loading");
     setLoadingMessage("Uploading media...");
     setApiError(null);
     try {
@@ -204,8 +212,7 @@ export default function CreatorDashboard() {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred.";
       setApiError(`Failed to go live: ${errorMessage}`);
-    } finally {
-      setIsLoading(false);
+      setView("results");
     }
   };
 
@@ -271,8 +278,67 @@ export default function CreatorDashboard() {
     );
   }
 
+  const renderDashboardHome = () => (
+    <div className="animate-fade-in">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatCard
+          title="Total Raised"
+          value={`₦${totalFunding.toLocaleString()}`}
+          icon={<TrendingUp />}
+        />
+        <StatCard title="Investors" value="0" icon={<Users />} />
+        <StatCard
+          title="Live Projects"
+          value={liveProjects.length}
+          icon={<Clock />}
+        />
+        <StatCard
+          title="Avg. Pulse Score"
+          value={avgPulseScore}
+          icon={<BarChart2 />}
+          variant="primary"
+        />
+      </div>
+      <div className="mt-8">
+        <h3 className="font-satoshi text-2xl font-bold">Your Live Projects</h3>
+        {isLoading ? (
+          <div className="text-center py-10">
+            <Loader2 className="w-8 h-8 mx-auto animate-spin" />
+          </div>
+        ) : liveProjects.length > 0 ? (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {liveProjects.map((p) => (
+              <div
+                key={p.id}
+                className="cursor-pointer"
+                onClick={() => handleSelectProject(p)}
+              >
+                <ProjectCard
+                  project={{ ...p, goal: p.fundingGoal }}
+                  onSelect={() => {}}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-4 text-muted">You have no live projects yet.</p>
+        )}
+      </div>
+      <button
+        onClick={() => setView("creation")}
+        className="mt-8 w-full text-center py-4 border-2 border-dashed border-muted rounded-xl text-muted hover:border-primary hover:text-primary transition-colors"
+      >
+        + Create New Project
+      </button>
+    </div>
+  );
+
   const renderContent = () => {
     switch (view) {
+      case "dashboard":
+        return renderDashboardHome();
+      case "investorDirectory":
+        return <InvestorDirectory />;
       case "projectDetail":
         return selectedProject ? (
           <ProjectInfo
@@ -404,20 +470,8 @@ export default function CreatorDashboard() {
                 <p className="text-center text-red-500">{apiError}</p>
               )}
               <div className="flex justify-end pt-4">
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="!text-lg"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />{" "}
-                      Analyzing...
-                    </>
-                  ) : (
-                    "Get AI Pulse Score"
-                  )}
+                <Button type="submit" size="lg" className="!text-lg">
+                  Get AI Pulse Score
                 </Button>
               </div>
             </form>
@@ -535,90 +589,14 @@ export default function CreatorDashboard() {
               >
                 Back to Edit
               </Button>
-              <Button
-                size="lg"
-                className="!text-lg"
-                onClick={handleGoLive}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />{" "}
-                    Publishing...
-                  </>
-                ) : (
-                  "Go Live!"
-                )}
+              <Button size="lg" className="!text-lg" onClick={handleGoLive}>
+                Go Live!
               </Button>
             </div>
           </div>
         ) : null;
-      case "dashboard":
       default:
-        return (
-          <div className="animate-fade-in">
-            <div className="mb-6">
-              <h2 className="font-satoshi text-3xl font-bold">
-                Your Campaign Dashboard
-              </h2>
-              <p className="text-muted mt-1">Manage your active campaigns.</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <StatCard
-                title="Total Raised"
-                value={`₦${totalFunding.toLocaleString()}`}
-                icon={<TrendingUp />}
-              />
-              <StatCard title="Investors" value="0" icon={<Users />} />
-              <StatCard
-                title="Live Projects"
-                value={liveProjects.length}
-                icon={<Clock />}
-              />
-              <StatCard
-                title="Avg. Pulse Score"
-                value={avgPulseScore}
-                icon={<BarChart2 />}
-                variant="primary"
-              />
-            </div>
-            <div className="mt-8">
-              <h3 className="font-satoshi text-2xl font-bold">
-                Your Live Projects
-              </h3>
-              {isLoading ? (
-                <div className="text-center py-10">
-                  <Loader2 className="w-8 h-8 mx-auto animate-spin" />
-                </div>
-              ) : liveProjects.length > 0 ? (
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {liveProjects.map((p) => (
-                    <div
-                      key={p.id}
-                      className="cursor-pointer"
-                      onClick={() => handleSelectProject(p)}
-                    >
-                      <ProjectCard
-                        project={{ ...p, goal: p.fundingGoal }}
-                        onSelect={() => {}}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-4 text-muted">
-                  You have no live projects yet.
-                </p>
-              )}
-            </div>
-            <button
-              onClick={() => setView("creation")}
-              className="mt-8 w-full text-center py-4 border-2 border-dashed border-muted rounded-xl text-muted hover:border-primary hover:text-primary transition-colors"
-            >
-              + Create New Project
-            </button>
-          </div>
-        );
+        return renderDashboardHome();
     }
   };
 
@@ -639,6 +617,24 @@ export default function CreatorDashboard() {
           />
         </div>
       </header>
+
+      <div className="flex space-x-2 border-b border-border mb-8">
+        <Button
+          variant={view === "dashboard" ? "default" : "ghost"}
+          onClick={() => setView("dashboard")}
+        >
+          <LayoutDashboard className="w-4 h-4 mr-2" />
+          My Dashboard
+        </Button>
+        <Button
+          variant={view === "investorDirectory" ? "default" : "ghost"}
+          onClick={() => setView("investorDirectory")}
+        >
+          <Briefcase className="w-4 h-4 mr-2" />
+          Find Investors
+        </Button>
+      </div>
+
       {renderContent()}
     </div>
   );

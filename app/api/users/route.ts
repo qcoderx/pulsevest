@@ -2,14 +2,14 @@
 import { type NextRequest, NextResponse } from "next/server";
 import connectToDatabase from "@/lib/mongodb";
 
-// --- CREATE A NEW USER PROFILE IN MONGODB ---
 export async function POST(req: NextRequest) {
   try {
-    const { uid, name, email, role } = await req.json();
+    const body = await req.json();
+    const { uid, name, email, role, contactInfo, investmentInterests } = body;
 
     if (!uid || !name || !email || !role) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required user fields" },
         { status: 400 }
       );
     }
@@ -17,7 +17,6 @@ export async function POST(req: NextRequest) {
     const client = await connectToDatabase();
     const db = client.db("pulsevest");
 
-    // Check if user already exists
     const existingUser = await db.collection("users").findOne({ uid });
     if (existingUser) {
       return NextResponse.json(
@@ -26,14 +25,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create a new user document
-    const newUser = {
+    const newUser: any = {
       uid,
       name,
       email,
       role,
       createdAt: new Date().toISOString(),
     };
+
+    if (role === "investor") {
+      newUser.contactInfo = contactInfo;
+      newUser.investmentInterests = investmentInterests;
+    }
 
     const result = await db.collection("users").insertOne(newUser);
 
