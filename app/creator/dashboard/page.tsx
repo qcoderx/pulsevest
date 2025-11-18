@@ -158,7 +158,15 @@ export default function CreatorDashboard() {
         body: uploadFormData,
       });
       if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json();
+        if (uploadResponse.status === 413) {
+          throw new Error("File too large. Please use a smaller file (max 50MB).");
+        }
+        let errorData;
+        try {
+          errorData = await uploadResponse.json();
+        } catch {
+          throw new Error(`Upload failed with status ${uploadResponse.status}`);
+        }
         throw new Error(errorData.error || `Upload failed`);
       }
       const { mediaUrl, imageUrl } = await uploadResponse.json();

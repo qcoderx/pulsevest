@@ -2,6 +2,9 @@ import { type NextRequest, NextResponse } from "next/server"
 import connectToDatabase from "@/lib/mongodb"
 import type { LiveProject } from "@/types"
 
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 // --- GET A CREATOR'S PROJECTS ---
 // This function is called by the Creator Dashboard to display their live projects.
 export async function GET(req: NextRequest) {

@@ -26,6 +26,9 @@ const uploadStream = (fileBuffer: Buffer, options: any): Promise<any> => {
   });
 };
 
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
