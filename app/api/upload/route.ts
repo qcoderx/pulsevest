@@ -31,6 +31,15 @@ export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
+    // Check content length before processing
+    const contentLength = request.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > 100 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "File too large. Maximum size is 100MB." },
+        { status: 413 }
+      );
+    }
+    
     const formData = await request.formData();
     const mediaFile = formData.get("mediaFile") as File | null;
     const coverImage = formData.get("coverImage") as File | null;

@@ -159,7 +159,7 @@ export default function CreatorDashboard() {
       });
       if (!uploadResponse.ok) {
         if (uploadResponse.status === 413) {
-          throw new Error("File too large. Please use a smaller file (max 50MB).");
+          throw new Error("File too large. Please use a smaller file (max 100MB).");
         }
         let errorData;
         try {
