@@ -1,0 +1,12 @@
+node_modules/
+.next/
+.env*
+*.log
+.vercel
+.git/
+out/
+build/
+dist/
+coverage/
+.nyc_output/
+*.tsbuildinfo
